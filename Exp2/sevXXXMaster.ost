@@ -1,0 +1,15 @@
+# online status tracking (OST) configuration file
+#   words that start with "sev-": seven, sever
+#   Used in simonMultisyllable_v2, only perturbing the first syllable
+rmsSlopeWin = 0.020000
+
+# Heuristics
+n = 5
+
+0 INTENSITY_RISE_HOLD_POS_SLOPE 0.04 0.008 {} # Voicing onset 1st vowel
+2 NEG_INTENSITY_SLOPE_STRETCH_SPAN 6 -10 {} # Offset 1st vowel
+4 INTENSITY_RISE_HOLD_POS_SLOPE 0.030 0.05 {} # Voicing onset 2nd vowel
+6 NEG_INTENSITY_SLOPE_STRETCH_SPAN 5 -6 {} # Offset 2nd vowel
+8 OST_END NaN NaN {}
+
+n = 0
