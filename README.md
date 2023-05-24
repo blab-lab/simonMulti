@@ -1,2 +1,3 @@
-# template-study
-A template repo, ready to be duplicated for an individual study
+#  simonMulti
+Programmed by Lana Hantzsch, Chris Naber, Tahseen Shaik, Ben Parrell, Carrie Niziolek
+
