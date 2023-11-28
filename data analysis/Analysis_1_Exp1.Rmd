@@ -1,0 +1,607 @@
+---
+title: "Analysis_Exp1"
+output: html_document
+date: "2023-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(ggpubr)
+
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(MuMIn)
+library(r2glmm)
+
+library(effsize)
+```
+
+#Normalization
+
+```{r}
+data1 <- read.csv("F1_Exp1.csv")
+
+data1 <- unique(data1)
+
+#Add Block_10 info
+
+data1$Block_10 <- ceiling(data1$Trial/30)
+
+temp1 <- data.frame(table(data1$Speaker, data1$Block_10, data1$Phase))
+
+#Obtain baseline means
+
+temp1 <- aggregate(data1$meanF1_mel, 
+                   list(data1$Direction, data1$Block_10, data1$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Block_10", "Speaker", "meanF1")
+
+#Limit results to the last 10 trials of baseline 
+
+##Where is it?
+
+temp2 <- data.frame(table(data1$Block_10, data1$Phase))
+temp2 <- temp2[which(temp2$Freq != 0 & temp2$Var2 == "Baseline"),]
+var1 <- max(as.numeric(as.character(temp2$Var1)))
+
+#Found it
+temp1 <- temp1[which(temp1$Block_10 == var1), ]
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Direction, sep = "_")
+
+data1$Tracer <- paste(data1$Speaker, data1$Direction, sep = "_")
+
+#Pairing data from temp1 
+
+data1$F1_Baseline <- lookup(terms = data1$Tracer, 
+                            key.match = temp1$Tracer,
+                            key.reassign = temp1$meanF1)
+
+#Calculate F1 change 
+
+data1$F1_Change <- data1$meanF1_mel - data1$F1_Baseline
+```
+
+#P1, result figure
+
+```{r}
+#Set up bars and labels
+
+bar_1 = 35
+bar_2 = 65
+bar_3 = 155
+
+var_Baseline = bar_1 / 2
+var_Ramp = (bar_1 + bar_2) /2 
+var_Hold = (bar_2 + bar_3) /2 
+var_Washout = bar_3 + 15
+```
+
+```{r}
+#Plot grand average
+
+data1$Direction <- factor(data1$Direction, levels = c("Upshift", 
+                                                      "Downshift", 
+                                                      "Unshifted"))
+
+
+temp1 <- summarySEwithin(data = data1, 
+                         measurevar = "F1_Change",
+                         withinvars = c("Direction", "Block_10"), 
+                         idvar = "Speaker",
+                         na.rm = TRUE)
+
+temp1$Block_10 <- as.numeric(temp1$Block_10) * 10
+
+
+```
+
+```{r}
+ggplot(data = temp1, aes(x = Block_10, y = F1_Change, 
+                               color = Direction)) +
+  geom_point() + 
+  geom_line() + 
+  geom_errorbar(aes(ymin = F1_Change - se, ymax = F1_Change + se), 
+                width = 4,
+                position = position_dodge(0)) + 
+  theme_classic() + 
+  ylab("F1 change (mel)") + 
+  geom_hline(yintercept = 0, linetype = "solid", 
+             color = "black", linewidth = 0.5) + 
+  geom_vline(xintercept = bar_1, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_2, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_3, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  annotate("rect", xmin = 155, xmax = 165, ymin = -35, ymax = 45,
+           alpha = 0.2,fill = "yellow") + 
+  annotate("rect", xmin = 125, xmax = 135, ymin = -35, ymax = 45,
+           alpha = 0.2,fill = "yellow") + 
+  annotate(geom = "text", x = var_Baseline, y = max(temp1$F1_Change), 
+           label = "Baseline",color = "black", size = 5) +  
+  annotate(geom = "text", x = var_Ramp, y = max(temp1$F1_Change), 
+           label = "Ramp", color = "black", size = 5) + 
+  annotate(geom = "text", x = var_Hold, y =  max(temp1$F1_Change), 
+           label = "Hold", color = "black", size = 5) + 
+  annotate(geom = "text", x = var_Washout, y =  max(temp1$F1_Change), 
+           label = "Washout", color = "black", size = 5) +
+  theme(legend.position = "none", 
+        axis.text = element_text(size = 15), 
+        axis.title.y = element_text(size = 18), 
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank()) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(-35, 46), 
+                     breaks = seq(-40, 50, by = 10)) +
+  scale_x_continuous(expand = c(0, 0), limits = c(1, 183), 
+                     breaks = c(10, 30, 40, 60, 
+                                70, 150, 160, 180)) +
+  scale_color_manual(values = c("red", "blue", "gray")) 
+
+ggsave(filename = "1B.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 4)
+
+ggsave(filename = "1B.svg",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 4)
+```
+
+#P2, perturbations 
+
+```{r}
+#Numbers
+Block_10s <- c(1, 33.99, 65.999, 150, 155.999, 156, 185)
+
+Shifts <- c("Unshifted", "Upshift", "Downshift")
+
+temp1 <- expand.grid(Block_10s, Shifts)
+
+colnames(temp1) <- c("Block_10", "Direction")
+
+temp1$Mags <- c(0, 0, 0, 0, 0, 0, 0, 
+                2.0, 2.0, 125, 125, 125, 2.0, 2.0,
+                -2.0, -2.0, -125, -125, -125, -2.0, -2.0)
+
+temp1$Direction <- factor(temp1$Direction, levels = c("Upshift", 
+                                                      "Downshift",
+                                                      "Unshifted"))
+```
+
+```{r}
+#Plot
+
+ggplot(data = temp1, 
+             aes(x = Block_10, y = Mags, color = Direction)) +
+  geom_line(linewidth = 1) + 
+  theme_classic() + 
+  ylab("F1 pert (mel)") + 
+  theme(legend.position = "none", 
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(1, 185), 
+                     breaks = c(10, 30, 40, 60, 
+                                70, 150, 160, 180)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(-130, 130), 
+                     breaks = c(-125, 0, 125)) +
+  scale_color_manual(values = c("red", "blue", "gray"))
+
+ggsave(filename = "1A.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 1.5)
+
+
+ggsave(filename = "1A.svg",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 1.5)
+```
+
+#Calculate Downshift - Upshift
+
+```{r}
+#Calculate Downshift & Upshift for individual speakers 
+
+temp2 <- aggregate(data1$F1_Change, 
+                   list(data1$Direction, data1$Block_10, data1$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Direction", "Block_10", "Speaker", "meanF1")
+
+temp2 <- temp2[which(temp2$Direction != "Unshifted"), ]
+
+temp3 <- spread(data = temp2, key = Direction, value = meanF1)
+
+temp3$DownUp <- temp3$Downshift - temp3$Upshift
+
+#Summary
+
+temp2 <- summarySEwithin(data = temp3, 
+                         measurevar = "DownUp",
+                         withinvars = c("Block_10"), 
+                         idvar = "Speaker",
+                         na.rm = TRUE)
+
+temp2$Block_10 <- as.numeric(temp2$Block_10) * 10
+
+```
+
+```{r}
+#Plot
+
+ggplot(data = temp2, aes(x = Block_10, y = DownUp)) +
+  geom_point() + 
+  geom_line() + 
+  geom_errorbar(aes(ymin = DownUp - se, ymax = DownUp + se), 
+                width = 4,
+                position = position_dodge(0)) + 
+  theme_classic() + 
+  geom_hline(yintercept = 0, linetype = "solid", 
+             color = "black", linewidth = 0.5) + 
+  theme() + 
+  xlab("Blocks") +
+  ylab("Down - Up (mel)") + 
+  annotate("rect", xmin = 155-1, xmax = 165-1, ymin = -12, ymax = 75,
+           alpha = 0.2,fill = "yellow") + 
+  annotate("rect", xmin = 125, xmax = 135, ymin = -12, ymax = 75,
+           alpha = 0.2,fill = "yellow") + 
+  geom_hline(yintercept = 0, linetype = "solid", 
+             color = "black", linewidth = 0.5) + 
+  geom_vline(xintercept = bar_1, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_2, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_3 -1, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(1, 183), 
+                     breaks = c(10, 30, 40, 60, 
+                                70, 150, 160, 180)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(-12, 75), 
+                     breaks = c(-10, 0, 70),
+                     labels = c("-10", "0", "70"))
+
+ggsave(filename = "1C.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 2)
+```
+
+#Plot individual participant data
+
+```{r}
+temp1 <- summarySEwithin(data = data1, 
+                         measurevar = "F1_Change",
+                         withinvars = c("Direction", "Block_10", "Speaker"), 
+                         na.rm = TRUE)
+
+#Restricted to last 10 trials of Hold and Washout
+
+temp2 <- temp1[which(temp1$Block_10 %in% c(13, 16)), ]
+temp2 <- temp2[which(temp2$Direction != "Unshifted"), ]
+
+temp2$Block_10 <- ifelse(temp2$Block_10 == 13, "Hold", "Washout")
+
+temp2$Direction <- factor(temp2$Direction, levels = c("Downshift", "Upshift"))
+
+
+```
+
+```{r}
+ggplot(data = temp2, aes(x = Direction, y = F1_Change, 
+                               group = Speaker, color = Speaker)) +
+  geom_line() + 
+  geom_point() + 
+  theme_classic() + 
+  ylab("F1 change (mel)") + 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.5) + 
+  theme(legend.position = "none",
+        axis.title.x = element_blank(),
+        #axis.text = element_blank(),
+        strip.text.x = element_text(size = 15)) +
+  facet_grid(~ Block_10) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(-105, 125), 
+                     breaks = seq(-100, 100, by = 50))
+
+ggsave(filename = "1D.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 4)
+```
+
+#Model fit
+
+```{r}
+#Restrict to the shaded trials
+
+head(data1)
+
+data11 <- data1[which(data1$Block_10 %in% c(13, 16)), ]
+
+data11$Phase <- factor(data11$Phase)
+
+contrasts(data11$Phase) = contr.sum(2)
+
+contrasts(data11$Phase)
+
+data11$Direction <- factor(data11$Direction)
+
+contrasts(data11$Direction) = contr.sum(3)
+
+contrasts(data11$Direction)
+
+f <- F1_Change ~ Direction * Phase + 
+  (Direction * Phase | Speaker) + (Direction * Phase | Word)
+
+m.order <- buildmer(f,
+                    data = data11,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = data11,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+```{r}
+m1 <- lmer(f,
+           data = data11,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+car::Anova(m1, type = 3)
+
+#Post-hoc
+
+testInteractions(m1, 
+                 pairwise = c("Direction"))
+
+testInteractions(m1, 
+                 pairwise = c("Phase"))
+
+testInteractions(m1, 
+                 fixed = c("Direction"))
+
+testInteractions(m1, 
+                 fixed = c("Phase"), 
+                 pairwise = c("Direction"))
+
+testInteractions(m1, 
+                 fixed = c("Direction"), 
+                 pairwise = c("Phase"))
+
+testInteractions(m1, 
+                 fixed = c("Phase", "Direction"))
+```
+
+```{r}
+#Summary statistics
+
+summarySEwithin(data = data11, 
+                measurevar = "F1_Change",
+                withinvars = c("Direction"), 
+                idvar = "Speaker",
+                na.rm = TRUE)
+
+summarySEwithin(data = data11, 
+                measurevar = "F1_Change",
+                withinvars = c("Direction", "Phase"), 
+                idvar = "Speaker",
+                na.rm = TRUE)
+```
+
+```{r}
+#Effect size
+
+r2beta(m1, partial = TRUE, 
+       method = "nsj")
+
+```
+
+```{r}
+#Cohen's d
+
+#Direction
+
+temp1 <- data11[which(data11$Direction == "Upshift"), "F1_Change"]
+temp2 <- data11[which(data11$Direction == "Downshift"), "F1_Change"]
+temp3 <- data11[which(data11$Direction == "Unshifted"), "F1_Change"]
+
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+#Interaction
+
+##Hold
+
+temp1 <- data11[which(data11$Direction == "Upshift" & data11$Phase == "Hold"),
+                "F1_Change"]
+temp2 <- data11[which(data11$Direction == "Downshift" & data11$Phase == "Hold"),
+                "F1_Change"]
+temp3 <- data11[which(data11$Direction == "Unshifted" & data11$Phase == "Hold"),
+                "F1_Change"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+##Washout
+
+temp1 <- data11[which(data11$Direction == "Upshift" & 
+                        data11$Phase == "Washout"),
+                "F1_Change"]
+temp2 <- data11[which(data11$Direction == "Downshift" & 
+                        data11$Phase == "Washout"),
+                "F1_Change"]
+temp3 <- data11[which(data11$Direction == "Unshifted" & 
+                        data11$Phase == "Washout"),
+                "F1_Change"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+```
+
+#Word frequency
+
+```{r}
+#Exclude the Unshifted
+
+data12 <- data11[which(data11$Direction != "Unshifted"), ]
+
+#Sign-flip the Upshift
+
+data12$F1_Sign <- ifelse(data12$Direction == "Upshift", 
+                         (data12$F1_Change * -1), 
+                         data12$F1_Change)
+
+#Plot check
+
+temp1 <- summarySEwithin(data = data12, 
+                         measurevar = "F1_Sign",
+                         withinvars = c("Direction", "Phase", "Word"), 
+                         idvar = "Speaker",
+                         na.rm = TRUE)
+
+ggplot(data = temp1, aes(x = Phase, y = F1_Sign, 
+                         color = Direction, group = Direction)) +
+  geom_point() + 
+  geom_line() + 
+  geom_errorbar(aes(ymin = F1_Sign - se, ymax = F1_Sign + se), 
+                width = 0.5,
+                position = position_dodge(0)) + 
+  theme_classic() + 
+  ylab("F1 change (mel)") + 
+  xlab("Block_10") + 
+  facet_grid(. ~ Word)+ 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.5) + 
+  theme(legend.position = "top", 
+        legend.title = element_blank(), 
+        legend.text = element_text(size = 10, margin = margin(r = 30)),
+        axis.title.x = element_text(vjust = -0.5),
+        plot.title = element_text(size = 15),
+        axis.ticks.x=element_blank()) + 
+  scale_color_manual(values = c("red", "blue", "gray"))
+
+```
+
+```{r}
+#Model 
+
+data12$Direction <- factor(data12$Direction, levels = c("Upshift", "Downshift"))
+
+contrasts(data12$Direction) = contr.sum(2)
+
+contrasts(data12$Direction)
+
+data12$Phase <- factor(data12$Phase, levels = c("Hold", "Washout"))
+
+contrasts(data12$Phase) = contr.sum(2)
+
+contrasts(data12$Phase)
+
+f <- F1_Sign ~ Direction * Phase * Word + 
+  (Direction * Phase * Word| Speaker)
+
+m.order <- buildmer(f,
+                    data = data12,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = data12,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+```{r}
+m1.a <- lmer(f,
+             data = data12,
+             control = lmerControl(optimizer = "bobyqa",
+                                   optCtrl = list(maxfun = 2e5)),
+             REML = TRUE)
+
+car::Anova(m1.a, type = 3)
+
+testInteractions(m1.a, 
+                 fixed = NULL, 
+                 pairwise = c("Word"))
+
+testInteractions(m1.a, 
+                 fixed = c("Word"), 
+                 pairwise = NULL)
+```
+
+```{r}
+#Summary statistics
+
+summarySEwithin(data = data12, 
+                measurevar = "F1_Sign",
+                withinvars = c("Word"), 
+                idvar = "Speaker",
+                na.rm = TRUE)
+
+```
+
+```{r}
+#Effect size
+
+r2beta(m1.a, partial = TRUE, 
+       method = "nsj")
+
+```
+
+```{r}
+#Cohen's d
+
+temp1 <- data12[which(data12$Word == "head"), "F1_Sign"]
+temp2 <- data12[which(data12$Word == "bed"), "F1_Sign"]
+temp3 <- data12[which(data12$Word == "ted"), "F1_Sign"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp2, temp3)
+cohen.d(temp1, temp3)
+
+```
+

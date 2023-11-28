@@ -1,0 +1,268 @@
+---
+title: "Analysis_Exp123_Size"
+output: html_document
+date: "2023-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(ggpubr)
+
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(MuMIn)
+library(r2glmm)
+library(effsize)
+
+#Standard error function
+standard_error <- function(x) sd(x)/sqrt(length(x))
+```
+
+#Size comparison, individual means
+```{r}
+#Data prep
+data12$Exp <- "Experiment 1 \nmonosyllabic"
+data22$Exp <- "Experiment 2 \ndisyllabic"
+data32$Exp <- "Experiment 3 \ntrisyllabic"
+
+temp1 <- c("Exp", "Speaker", "Trial", "Block_10", 
+           "Word", "Phase", "Direction", 
+           "Duration", "F1_Change") #Columns to select
+
+data4 <- rbind(data12[, temp1], data22[, temp1], data32[, temp1])
+
+#Average
+
+temp1 <- aggregate(data4$F1_Change, 
+                   list(data4$Exp, data4$Speaker, 
+                        data4$Direction, data4$Phase), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Exp", "Speaker", "Direction", "Phase", "F1_Change")
+
+temp1 <- spread(temp1, key = Direction, value = F1_Change)
+
+temp1$DownUp <- temp1$Downshift - temp1$Upshift #Calculate
+
+#Set aside a data frame
+
+data41 <- temp1
+
+```
+
+#Size comparison, grand average
+```{r}
+#Calculate 
+
+temp1 <- aggregate(data41$DownUp, 
+                   list(data41$Exp, data41$Phase), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Exp", "Phase", "DownUp")
+
+temp2 <- aggregate(data41$DownUp, 
+                   list(data41$Exp, data41$Phase), 
+                   FUN = standard_error) 
+
+temp1$se <- temp2$x
+
+
+```
+
+```{r}
+#Plot
+
+ggplot(data = temp1, aes(x = Exp, y = DownUp, color = Exp)) + 
+  theme_classic() + 
+  ylab("Differential adaptation (mel)") + 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.5) + 
+  geom_point(size = 2.5) + 
+  geom_point(data = data41, aes(x = Exp, y = DownUp), 
+             position = position_jitter(w = 0.2, h = 0), 
+             alpha = 0.4) +
+  geom_errorbar(aes(ymin = DownUp - se, ymax = DownUp + se), 
+                width = 0.5, linewidth = 1,
+                position = position_dodge(0)) + 
+  theme(legend.position = "none", 
+        legend.title = element_blank(), 
+        legend.text = element_text(size = 10, margin = margin(r = 30)),
+        axis.title.x = element_blank(),
+        plot.title = element_blank(),
+        strip.text.x = element_text(size = 20),
+        axis.title.y = element_text(size = 18),
+        axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14)) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(-50, 140), 
+                     breaks = seq(from = -40, to = 120, by = 20)) +
+  facet_grid(. ~ Phase) +
+  scale_color_manual(values = c("#E69F03", "#00B050", "#7030A0"))
+
+ggsave("Figure6.png", 
+       dpi = 600,
+       width = 4 * 2.3,
+       height = 2 * 2.3)
+
+```
+
+#Model adapatation size across experiments
+
+```{r}
+#Data prep
+
+data41$EXP <- substr(data41$Exp, start = 1, stop = 12)
+
+#Model
+
+contrasts(data41$Phase) = contr.sum(2)
+
+contrasts(data41$Phase)
+
+data41$EXP <- factor(data41$EXP)
+
+contrasts(data41$EXP) = contr.sum(3)
+
+contrasts(data41$EXP)
+
+f <- DownUp ~ Phase * EXP + 
+  (Phase * EXP | Speaker)
+
+m.order <- buildmer(f,
+                    data = data41,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = data41,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+```{r}
+m4 <- lmer(f,
+           data = data41,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+car::Anova(m4, type = 3)
+
+#Post-hoc
+
+testInteractions(m4, 
+                 fixed = c(), 
+                 pairwise = c("EXP"))
+
+testInteractions(m4, 
+                 fixed = c("EXP"), 
+                 pairwise = c())
+
+testInteractions(m4, 
+                 fixed = c("Phase"), 
+                 pairwise = c("EXP"))
+
+testInteractions(m4, 
+                 fixed = c("EXP"), 
+                 pairwise = c("Phase"))
+
+testInteractions(m4, 
+                 fixed = c("EXP", "Phase"), 
+                 pairwise = c())
+
+```
+
+```{r}
+aggregate(data41$DownUp, 
+                   list(data41$EXP), 
+                   FUN = standard_error)
+
+aggregate(data41$DownUp, 
+                   list(data41$EXP), 
+                   FUN = mean) 
+
+aggregate(data41$DownUp, 
+                   list(data41$EXP, data41$Phase), 
+                   FUN = standard_error) 
+
+aggregate(data41$DownUp, 
+                   list(data41$EXP, data41$Phase), 
+                   FUN = mean) 
+
+```
+
+```{r}
+r2beta(m4, partial = TRUE, 
+       method = "nsj")
+
+
+```
+
+```{r}
+#Cohen's d
+
+temp1 <- data41[which(data41$EXP == "Experiment 1"), "DownUp"]
+temp2 <- data41[which(data41$EXP == "Experiment 2"), "DownUp"]
+temp3 <- data41[which(data41$EXP == "Experiment 3"), "DownUp"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+```
+
+```{r}
+#Interaction, 1 vs. 2&3
+
+##Hold
+
+temp1 <- data41[which(data41$EXP == "Experiment 1" & 
+                        data41$Phase == "Hold"), "DownUp"]
+
+temp2 <- data41[which(data41$EXP == "Experiment 2" & 
+                        data41$Phase == "Hold"), "DownUp"]
+
+temp3 <- data41[which(data41$EXP == "Experiment 3" & 
+                        data41$Phase == "Hold"), "DownUp"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+
+#Washout
+
+temp1 <- data41[which(data41$EXP == "Experiment 1" & 
+                        data41$Phase == "Washout"), "DownUp"]
+
+temp2 <- data41[which(data41$EXP == "Experiment 2" & 
+                        data41$Phase == "Washout"), "DownUp"]
+
+temp3 <- data41[which(data41$EXP == "Experiment 3" & 
+                        data41$Phase == "Washout"), "DownUp"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+
+```
+

@@ -1,0 +1,131 @@
+---
+title: "Analysis_Exp123_Syllable1"
+output: html_document
+date: "2023-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(ggpubr)
+
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(MuMIn)
+library(r2glmm)
+library(effsize)
+library(dlookr)
+```
+
+
+#Formant
+
+```{r}
+#Experiment 2
+
+temp1 <- data2[which(data2$Block_10 %in% c(2) & data2$Direction != "Unshifted"), ]
+
+```
+
+```{r}
+f <- meanF1_mel ~ Direction  + 
+  (Direction | Speaker) + (Direction| Word)
+
+m.order <- buildmer(f,
+                    data = temp1,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = temp1,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+```{r}
+f <- meanF1_mel ~ Word  + 
+  (Word | Speaker)
+
+m.order <- buildmer(f,
+                    data = temp1,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = temp1,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+
+```{r}
+#Experiment 3
+temp1 <- data3[which(data3$Block_10 %in% c(2) & data3$Direction != "Unshifted"), ]
+
+```
+
+```{r}
+f <- meanF1_mel ~ Direction  + 
+   (Direction | Speaker) + (Direction| Word)
+
+m.order <- buildmer(f,
+                    data = temp1,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = temp1,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+```{r}
+f <- meanF1_mel ~ Word  + 
+  (Word | Speaker)
+
+m.order <- buildmer(f,
+                    data = temp1,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = temp1,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```

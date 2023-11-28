@@ -1,3 +1,3 @@
 #  simonMulti
-Programmed by Lana Hantzsch, Chris Naber, Tahseen Shaik, Ben Parrell, Carrie Niziolek
+Experimnents programmed by Lana Hantzsch, Chris Naber, Tahseen Shaik, Ben Parrell, Carrie Niziolek
 
