@@ -1,9 +1,0 @@
-function [dataPaths] = get_dataPaths_simonMultisyllable_v2()
-%GET_DATAPATHS_SIMONMULTISYLLABLE_V2  Get datapaths for v2 of the simonMultisyllable experiment.
-
-svec = [341 435 466 472 473 ...
-    476 477 478 479 490 ...
-    493 495 497 498 499 ...
-    501 424 503 456 522];   
-
-dataPaths = get_acoustLoadPaths('simonMultisyllable_v2',svec);
