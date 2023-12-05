@@ -545,7 +545,7 @@ ggplot(data = temp1, aes(x = Block_10, y = Value, color = Exp)) +
         strip.text.x = element_text(size = 90)) + 
   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
   scale_color_manual(values = c("#E69F03", "#00B050", "#7030A0")) + 
-  scale_linetype_manual(values=c("solid", "longdash", "dotted"))
+  scale_linetype_manual(values=c("solid", "longdash", "dotted")) +
   facet_grid(. ~ Type)
 
 ggsave("7C.png", 
