@@ -138,7 +138,7 @@ contrasts(data41$EXP) = contr.sum(3)
 contrasts(data41$EXP)
 
 f <- DownUp ~ Phase * EXP + 
-  (Phase * EXP | Speaker)
+  (Phase | Speaker)
 
 m.order <- buildmer(f,
                     data = data41,

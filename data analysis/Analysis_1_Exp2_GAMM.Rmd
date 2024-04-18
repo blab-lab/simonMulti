@@ -1,0 +1,158 @@
+---
+title: "Analysis_Exp1"
+output: html_document
+date: "2023-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+library(Rmisc)
+
+library(sp)
+library(beepr)
+
+library(mgcv)
+library(itsadug)
+```
+
+```{r}
+#Adding nonlinear pattern over trials
+
+data2a <- data2[which(data2$Direction != "Unshifted"), ]
+
+m2a <- bam(F1_Change ~ Direction +  
+              s(Trial, bs = "tp", k = 20),  
+            data = data2a, method = "ML")
+
+summary(m2a) 
+gam.check(m2a)
+
+beep(sound = 0)
+```
+
+```{r}
+#Adding nonlinear pattern over trials for each group
+
+m2b <- bam(F1_Change ~ Direction +  
+              s(Trial, bs = "tp", by = Direction, k = 20), 
+            data = data2a, method = "ML")
+
+summary(m2b) 
+gam.check(m2b)
+
+#Model comparison
+
+compareML(m2a, m2b) #model m2b has lower AIC.
+
+beep(sound = 0)
+```
+
+```{r}
+#Add random intercept by speaker
+
+data2a$Speaker <- factor(data2a$Speaker)
+
+m2c <- bam(F1_Change ~ Direction +  
+             s(Trial, by = Direction) + 
+             s(Speaker, bs = "re"),
+           data = data2a, method = "ML")
+
+compareML(m2b, m2c) #model m2c has lower AIC.
+
+```
+
+```{r}
+#Add random intercept by speaker per group
+
+m2d <- bam(F1_Change ~ Direction +  
+             s(Trial, by = Direction) + 
+             s(Speaker, Direction, bs = "re"),
+           data = data2a, method = "ML")
+
+compareML(m2c, m2d) #model m2d has lower AIC.
+
+```
+
+```{r}
+#Try adding by speaker smooth
+
+m2e <- bam(F1_Change ~ Direction +  
+             s(Trial, by = Direction) + 
+             s(Speaker, Direction, bs = "re") +
+             s(Trial, Speaker,bs = "fs",m = 1),
+           data = data2a, method = "ML")
+
+compareML(m2d, m2e) #model m2e has lower AIC.
+```
+
+
+```{r}
+#Try using random smooth per speaker per direction
+
+m2f <- bam(F1_Change ~ Direction +  
+             s(Trial, by = Direction) + 
+             s(Trial, Speaker, by = Direction, bs="fs", m = 1),
+           data = data2a, method = "ML")
+
+compareML(m2e, m2f) #model m2e has lower AIC.
+```
+
+```{r}
+#Remove autocorrelation
+
+var_AR <- acf_resid(m2e)
+
+TEMP1 <- c()
+for(i in unique(data2a$Speaker)) {
+  
+  temp1 <- data2a[which(data2a$Speaker == i), ]
+  
+  var1 <- min(temp1$Trial)
+  
+  temp1$Initial <- ifelse(temp1$Trial == var1, TRUE, FALSE)
+  
+  TEMP1 <- rbind(TEMP1, temp1)
+  
+}
+
+data2a <- TEMP1
+
+m2e_AR <- bam(formula(m2e), 
+            rho = var_AR[2], AR.start = data2a$Initial,
+            data = data2a, method = "ML")
+
+summary(m2e_AR) 
+gam.check(m2e_AR)
+
+```
+
+#Visualize results 
+
+```{r}
+par(mfrow = c(1, 2))
+
+two.colors = c("red", "blue")
+
+plot_smooth(m2e_AR, view = "Trial", 
+            plot_all = c("Direction"),
+            #se = 0, lwd = 2,
+            legend_plot_all = "topleft",
+            xlab = "Trial",
+            ylab = "F1 change (mel)", 
+            main = "Fitted values", 
+            rug = FALSE, col = two.colors)
+
+plot_diff(m2e_AR, view = "Trial",
+          xlab = "Trial",
+          ylab = "F1 change (mel)", 
+          comp = list(Direction = c("Upshift", "Downshift")))
+```
+
+

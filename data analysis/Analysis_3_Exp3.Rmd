@@ -76,6 +76,13 @@ data3$F1_Baseline <- lookup(terms = data3$Tracer,
 #Calculate F1 change 
 
 data3$F1_Change <- data3$meanF1_mel - data3$F1_Baseline
+
+#Add frequency
+
+data3$Lexical <- ifelse(data3$Word == "pedicure", log10(0.00001/100), 
+                        ifelse(data3$Word == "pedestal", log(0.0002/100), log(0.0001/100)))
+
+table(data3$Lexical, data3$Word)
 ```
 
 #P1, result figure
@@ -381,6 +388,87 @@ testInteractions(m3,
                  fixed = c("Phase", "Direction"))
 ```
 
+#Frequency & Lexical 
+
+
+```{r}
+#Restrict to the shaded trials
+
+head(data3)
+
+data31 <- data3[which(data3$Block_10 %in% c(12, 13)), ]
+
+data31$Phase <- factor(data31$Phase)
+
+contrasts(data31$Phase) = contr.sum(2)
+
+contrasts(data31$Phase)
+
+data31$Direction <- factor(data31$Direction)
+
+contrasts(data31$Direction) = contr.sum(3)
+
+contrasts(data31$Direction)
+
+f <- F1_Change ~ Direction * Phase * Duration * Lexical + 
+  (Direction * Phase | Speaker) + (Direction * Phase | Word)
+
+m.order <- buildmer(f,
+                    data = data31,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = data31,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+```{r}
+m3 <- lmer(f,
+           data = data31,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+#Rank deficiency
+
+m3 <- lmer(F1_Change ~ Direction + Phase + Direction:Phase + Duration + 
+    Direction:Duration + Lexical + (1 + Direction + Phase | Speaker),
+           data = data31,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+car::Anova(m3, type = 3)
+
+#Post-hoc
+
+testInteractions(m3, 
+                 pairwise = c("Direction"))
+
+testInteractions(m3, 
+                 fixed = c("Direction"))
+
+testInteractions(m3, 
+                 fixed = c("Phase"), 
+                 pairwise = c("Direction"))
+
+testInteractions(m3, 
+                 fixed = c("Direction"), 
+                 pairwise = c("Phase"))
+
+testInteractions(m3, 
+                 fixed = c("Phase", "Direction"))
+```
+
+
 ```{r}
 #Summary statistics
 
@@ -577,3 +665,43 @@ cohen.d(temp1, temp2)
 
 ```
 
+
+#Test the Baseline difference
+
+```{r}
+temp1 <- data3[which(data3$Phase == "Baseline"), ]
+
+temp1 <- temp1[which(temp1$Direction != "Unshifted"), ]
+
+temp1 <- temp1[which(temp1$Block_10 == 2), ]
+
+
+f <- meanF1_mel ~ Direction * Word + 
+  (Direction * Word| Speaker)
+
+m.order <- buildmer(f,
+                    data = temp1,
+                    buildmerControl=buildmerControl(direction='order',
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f <- formula(m.order@model))
+
+m.backward <- buildmer(f,
+                       data = temp1 ,
+                       buildmerControl=list(direction='backward',
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+```
+
+```{r}
+temp2 <- lmer(f,
+             data = temp1,
+             control = lmerControl(optimizer = "bobyqa",
+                                   optCtrl = list(maxfun = 2e5)),
+             REML = TRUE)
+
+car::Anova(temp2, type = 3)
+```
