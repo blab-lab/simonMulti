@@ -1,0 +1,175 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+
+library(sp)
+library(beepr)
+
+library(mgcv)
+library(itsadug)
+
+rm(list=ls()) #Clear environment
+
+load("Exp1.RData")
+```
+
+#Prep
+```{r}
+data1$Direction <- factor(data1$Direction)
+
+contrasts(data1$Direction) = contr.sum(3)
+
+contrasts(data1$Direction)
+
+data1$Speaker <- factor(data1$Speaker)
+
+#Add Start info
+
+data1$Initial <- ifelse(data1$Block == 1, TRUE, FALSE)
+
+table(data1$Block, data1$Direction)
+```
+
+#Model
+```{r}
+#Adding nonlinear pattern over Blocks
+
+m1a <- bam(F1_Change ~ Direction +  
+              s(Block, bs = "tp", k = 20),  
+            data = data1, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m1a)
+
+m1a_AR <- bam(formula(m1a), 
+            rho = var_AR[2], AR.start = data1$Initial,
+            data = data1, method = "ML")
+
+summary(m1a_AR) 
+gam.check(m1a_AR)
+
+#beep(sound = 0)
+```
+
+```{r}
+#Adding nonlinear pattern over Blocks for each Direction
+
+m1b <- bam(F1_Change ~ Direction +  
+              s(Block, bs = "tp", by = Direction, k = 20), 
+            data = data1, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m1b)
+
+m1b_AR <- bam(formula(m1b), 
+            rho = var_AR[2], AR.start = data1$Initial,
+            data = data1, method = "ML")
+
+#Model comparison
+
+compareML(m1a_AR, m1b_AR) #model m1b_AR has lower AIC.
+
+#beep(sound = 0)
+```
+
+```{r}
+#Add random intercept by speaker
+m1c <- bam(F1_Change ~ Direction +  
+             s(Block, by = Direction, k = 20) + 
+             s(Speaker, bs = "re"),
+           data = data1, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m1c)
+
+m1c_AR <- bam(formula(m1c), 
+            rho = var_AR[2], AR.start = data1$Initial,
+            data = data1, method = "ML")
+
+compareML(m1b_AR, m1c_AR) #model m1c_AR has lower AIC.
+
+#beep(sound = 0)
+```
+
+```{r}
+#Add random intercept by Speaker per Direction (as a random slope)
+m1d <- bam(F1_Change ~ Direction +  
+             s(Block, by = Direction, k = 20) + 
+             s(Speaker, Direction, bs = "re"),
+           data = data1, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m1d)
+
+m1d_AR <- bam(formula(m1d), 
+            rho = var_AR[2], AR.start = data1$Initial,
+            data = data1, method = "ML")
+
+compareML(m1c_AR, m1d_AR) #Model m1d_AR preferred
+
+#beep(sound = 0)
+```
+
+```{r}
+#Try adding by speaker smooth
+m1e <- bam(F1_Change ~ Direction +  
+             s(Block, by = Direction, k = 20) + 
+             s(Speaker, Direction, bs = "re") +
+             s(Block, Speaker,bs = "fs",m = 1),
+           data = data1, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m1e)
+
+m1e_AR <- bam(formula(m1e), 
+            rho = var_AR[2], AR.start = data1$Initial,
+            data = data1, method = "ML")
+
+compareML(m1d_AR, m1e_AR) #model m1e_AR has lower AIC.
+
+#beep(sound = 0)
+```
+
+#Visualize results 
+
+```{r}
+two.colors = c("blue", "gray", "red")
+
+plot_smooth(m1e_AR, view = "Block", 
+            plot_all = c("Direction"),
+            #se = 0, lwd = 2,
+            legend_plot_all = "topleft",
+            xlab = "Block",
+            ylab = "F1 change (mel)", 
+            main = "Fitted values", 
+            rug = FALSE, col = two.colors)
+
+plot_diff(m1e_AR, view = "Block",
+          xlab = "Block",
+          ylab = "F1 change (mel)", 
+          main = "Downshift - Upshift", 
+          comp = list(Direction = c("Downshift", "Upshift")))
+```
+
+#Obtain fitted values
+
+```{r}
+data1b <- get_fitted(m1e_AR, 
+                    se = 1, 
+                    as.data.frame = TRUE)
+
+save.image("Exp1.RData")
+```
+

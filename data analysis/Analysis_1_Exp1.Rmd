@@ -16,6 +16,7 @@ library(ggpubr)
 
 library(qdapTools)
 library(Rmisc)
+library(emmeans)
 
 library(lme4)
 library(lmerTest)
@@ -32,37 +33,32 @@ library(effsize)
 #Normalization
 
 ```{r}
-#data1 <- read.csv("F1_Exp1_S1.csv") Load raw data
+data1 <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F1_Exp1_S1.csv")
 
 data1 <- unique(data1)
 
-#Add Block_10 info
+#Add Block info
 
-data1$Block_10 <- ceiling(data1$Trial/30)
+data1$Block <- ceiling(data1$Trial/30)
 
-temp1 <- data.frame(table(data1$Speaker, data1$Block_10, data1$Phase))
-
-#Obtain baseline means
+#Obtain Baseline means
 
 temp1 <- aggregate(data1$meanF1_mel, 
-                   list(data1$Direction, data1$Block_10, data1$Speaker), 
+                   list(data1$Direction, data1$Block, data1$Speaker), 
                    FUN = mean) 
 
-colnames(temp1) <- c("Direction", "Block_10", "Speaker", "meanF1")
+colnames(temp1) <- c("Direction", "Block", "Speaker", "meanF1")
 
-#Limit results to the last 10 trials of baseline 
+#Limit results to the last 10 trials of Baseline 
 
-##Where is it?
-
-temp2 <- data.frame(table(data1$Block_10, data1$Phase))
+temp2 <- data.frame(table(data1$Block, data1$Phase))
 temp2 <- temp2[which(temp2$Freq != 0 & temp2$Var2 == "Baseline"),]
 var1 <- max(as.numeric(as.character(temp2$Var1)))
 
-#Found it
-temp1 <- temp1[which(temp1$Block_10 == var1), ]
+
+temp1 <- temp1[which(temp1$Block == var1), ]
 
 temp1$Tracer <- paste(temp1$Speaker, temp1$Direction, sep = "_")
-
 data1$Tracer <- paste(data1$Speaker, data1$Direction, sep = "_")
 
 #Pairing data from temp1 
@@ -77,11 +73,150 @@ data1$F1_Change <- data1$meanF1_mel - data1$F1_Baseline
 
 #Add frequency
 
-data1$Lexical <- ifelse(data1$Word == "head", log10(0.038/100), 
-                        ifelse(data1$Word == "bed", log(0.013/100), log(0.0003/100)))
+data1$Lexical <- ifelse(data1$Word == "head", log10(0.0385950698/100), 
+                        ifelse(data1$Word == "bed", log(0.0127859079/100), log(0.0000305076/100)))
 
 table(data1$Lexical, data1$Word)
 ```
+
+#Model fit
+
+```{r}
+#Restrict to the interested areas
+
+head(data1)
+
+data11 <- data1[which(data1$Block %in% c(13, 16)), ]
+
+data11$Phase <- factor(data11$Phase)
+
+contrasts(data11$Phase) = contr.sum(2)
+
+contrasts(data11$Phase)
+
+data11$Direction <- factor(data11$Direction)
+
+contrasts(data11$Direction) = contr.sum(3)
+
+contrasts(data11$Direction)
+
+f0 <- F1_Change ~ Direction * Phase * Lexical + 
+  (Direction * Phase | Speaker) 
+
+m.order <- buildmer(f0,
+                    data = data11,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data11,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m1 <- lmer(f2,
+           data = data11,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+car::Anova(m1, type = 3)
+
+#Post-hoc
+
+testInteractions(m1, 
+                 pairwise = c("Direction"))
+
+
+
+testInteractions(m1, 
+                 fixed = c("Direction"))
+
+testInteractions(m1, 
+                 fixed = c("Phase", "Direction"))
+```
+
+```{r}
+#Summary statistics
+
+summarySEwithin(data = data11, 
+                measurevar = "F1_Change",
+                withinvars = c("Direction"), 
+                idvar = "Speaker",
+                na.rm = TRUE)
+
+summarySEwithin(data = data11, 
+                measurevar = "F1_Change",
+                withinvars = c("Direction", "Phase"), 
+                idvar = "Speaker",
+                na.rm = TRUE)
+```
+
+```{r}
+#Effect size
+
+r2beta(m1, partial = TRUE, 
+       method = "nsj")
+
+```
+
+```{r}
+#Cohen's d
+
+#Direction
+
+temp1 <- data11[which(data11$Direction == "Upshift"), "F1_Change"]
+temp2 <- data11[which(data11$Direction == "Downshift"), "F1_Change"]
+temp3 <- data11[which(data11$Direction == "Unshifted"), "F1_Change"]
+
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+#Interaction
+
+##Hold
+
+temp1 <- data11[which(data11$Direction == "Upshift" & data11$Phase == "Hold"),
+                "F1_Change"]
+temp2 <- data11[which(data11$Direction == "Downshift" & data11$Phase == "Hold"),
+                "F1_Change"]
+temp3 <- data11[which(data11$Direction == "Unshifted" & data11$Phase == "Hold"),
+                "F1_Change"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+##Washout
+
+temp1 <- data11[which(data11$Direction == "Upshift" & 
+                        data11$Phase == "Washout"),
+                "F1_Change"]
+temp2 <- data11[which(data11$Direction == "Downshift" & 
+                        data11$Phase == "Washout"),
+                "F1_Change"]
+temp3 <- data11[which(data11$Direction == "Unshifted" & 
+                        data11$Phase == "Washout"),
+                "F1_Change"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+```
+
+
+
 
 #P1, result figure
 
@@ -338,192 +473,6 @@ ggsave(filename = "1D.png",
        dpi = 600,
        width = 9,
        height = 4)
-```
-
-#Model fit
-
-```{r}
-#Restrict to the shaded trials
-
-head(data1)
-
-data11 <- data1[which(data1$Block_10 %in% c(13, 16)), ]
-
-data11$Phase <- factor(data11$Phase)
-
-contrasts(data11$Phase) = contr.sum(2)
-
-contrasts(data11$Phase)
-
-data11$Direction <- factor(data11$Direction)
-
-contrasts(data11$Direction) = contr.sum(3)
-
-contrasts(data11$Direction)
-
-f <- F1_Change ~ Direction * Phase * Lexical + 
-  (Direction * Phase | Speaker) + (Direction * Phase | Word)
-
-m.order <- buildmer(f,
-                    data = data11,
-                    buildmerControl=buildmerControl(direction = "order",
-                                                    crit = "BIC", 
-                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
-
-(f <- formula(m.order@model))
-
-m.backward <- buildmer(f,
-                       data = data11,
-                       buildmerControl=list(direction = "backward",
-                                            crit = "BIC", 
-                                            args=list(control=lmerControl(optimizer='bobyqa'))))
-
-summary(m.backward)
-
-(f <- formula(m.backward@model))
-```
-
-```{r}
-m1 <- lmer(f,
-           data = data11,
-           control = lmerControl(optimizer = "bobyqa",
-                                 optCtrl = list(maxfun = 2e5)),
-           REML = TRUE)
-
-car::Anova(m1, type = 3)
-
-#Post-hoc
-
-testInteractions(m1, 
-                 pairwise = c("Direction"))
-
-testInteractions(m1, 
-                 pairwise = c("Phase"))
-
-testInteractions(m1, 
-                 fixed = c("Direction"))
-
-testInteractions(m1, 
-                 fixed = c("Phase"), 
-                 pairwise = c("Direction"))
-
-testInteractions(m1, 
-                 fixed = c("Direction"), 
-                 pairwise = c("Phase"))
-
-testInteractions(m1, 
-                 fixed = c("Phase", "Direction"))
-```
-
-```{r}
-#Summary statistics
-
-summarySEwithin(data = data11, 
-                measurevar = "F1_Change",
-                withinvars = c("Direction"), 
-                idvar = "Speaker",
-                na.rm = TRUE)
-
-summarySEwithin(data = data11, 
-                measurevar = "F1_Change",
-                withinvars = c("Direction", "Phase"), 
-                idvar = "Speaker",
-                na.rm = TRUE)
-```
-
-```{r}
-#Effect size
-
-r2beta(m1, partial = TRUE, 
-       method = "nsj")
-
-```
-
-```{r}
-#Cohen's d
-
-#Direction
-
-temp1 <- data11[which(data11$Direction == "Upshift"), "F1_Change"]
-temp2 <- data11[which(data11$Direction == "Downshift"), "F1_Change"]
-temp3 <- data11[which(data11$Direction == "Unshifted"), "F1_Change"]
-
-
-cohen.d(temp1, temp2)
-cohen.d(temp1, temp3)
-cohen.d(temp2, temp3)
-
-#Interaction
-
-##Hold
-
-temp1 <- data11[which(data11$Direction == "Upshift" & data11$Phase == "Hold"),
-                "F1_Change"]
-temp2 <- data11[which(data11$Direction == "Downshift" & data11$Phase == "Hold"),
-                "F1_Change"]
-temp3 <- data11[which(data11$Direction == "Unshifted" & data11$Phase == "Hold"),
-                "F1_Change"]
-
-cohen.d(temp1, temp2)
-cohen.d(temp1, temp3)
-cohen.d(temp2, temp3)
-
-##Washout
-
-temp1 <- data11[which(data11$Direction == "Upshift" & 
-                        data11$Phase == "Washout"),
-                "F1_Change"]
-temp2 <- data11[which(data11$Direction == "Downshift" & 
-                        data11$Phase == "Washout"),
-                "F1_Change"]
-temp3 <- data11[which(data11$Direction == "Unshifted" & 
-                        data11$Phase == "Washout"),
-                "F1_Change"]
-
-cohen.d(temp1, temp2)
-cohen.d(temp1, temp3)
-cohen.d(temp2, temp3)
-```
-
-#Test the Baseline difference
-
-```{r}
-#S1
-
-temp1 <- data1[which(data1$Phase == "Baseline"), ]
-
-temp1 <- temp1[which(temp1$Direction != "Unshifted"), ]
-
-temp1 <- temp1[which(temp1$Block_10 == 3), ]
-
-
-f <- meanF1_mel ~ Word + 
-  (Word| Speaker)
-
-m.order <- buildmer(f,
-                    data = temp1,
-                    buildmerControl=buildmerControl(direction = "order",
-                                                    crit = "BIC", 
-                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
-
-(f <- formula(m.order@model))
-
-m.backward <- buildmer(f,
-                       data = temp1 ,
-                       buildmerControl=list(direction = "backward",
-                                            crit = "BIC", 
-                                            args=list(control=lmerControl(optimizer='bobyqa'))))
-
-summary(m.backward)
-
-(f <- formula(m.backward@model))
-
-#meanF1_mel ~ 1 + (1 | Speaker)
-
-```
-
-```{r}
-save.image("data_Exp1.RData")
 ```
 
 

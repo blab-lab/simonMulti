@@ -1,0 +1,228 @@
+---
+title: "Analysis_Exp3"
+output: html_document
+date: "2023-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(ggpubr)
+
+library(qdapTools)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(MuMIn)
+library(r2glmm)
+
+library(effsize)
+
+rm(list=ls()) #Clear environment
+```
+
+#Normalization
+
+```{r}
+data3 <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F1_Exp3_S1.csv")
+
+data3 <- unique(data3)
+
+#Add Chunk info
+
+var1 <- length(unique(data3$Word)) * 10
+
+data3$Chunk <- ceiling(data3$Trial/var1)
+
+#Obtain Baseline means
+
+temp1 <- aggregate(data3$meanF1_mel, 
+                   list(data3$Direction, data3$Chunk, data3$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Chunk", "Speaker", "meanF1")
+
+#Limit results to the last 10 trials of Baseline 
+
+temp2 <- data.frame(table(data3$Chunk, data3$Phase))
+temp2 <- temp2[which(temp2$Freq != 0 & temp2$Var2 == "Baseline"),]
+var1 <- max(as.numeric(as.character(temp2$Var1)))
+
+
+temp1 <- temp1[which(temp1$Chunk == var1), ]
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Direction, sep = "_")
+data3$Tracer <- paste(data3$Speaker, data3$Direction, sep = "_")
+
+#Pairing data from temp1 
+
+data3$F1_Baseline <- lookup(terms = data3$Tracer, 
+                            key.match = temp1$Tracer,
+                            key.reassign = temp1$meanF1)
+
+#Calculate F1 change 
+
+data3$F1_Change <- data3$meanF1_mel - data3$F1_Baseline
+```
+
+```{r}
+#Add frequency
+
+data3$Lexical <- ifelse(data3$Word == "seven", log10(0.0065751348/100), 
+                        ifelse(data3$Word == "sever", log(0.0001091837/100), log(0.0218708061/100)))
+
+table(data3$Lexical, data3$Word)
+
+#Add Block info
+
+var1 <- max(data3$Trial)
+var2 <- max(data3$Trial)/length(unique(data3$Word))
+
+temp1 <- seq(from = 1, to = var1, by = 1)
+
+temp2 <- rep(1:var2, each = length(unique(data3$Word)), length.out = var1)
+
+temp1 <- data.frame(temp1, temp2)
+
+colnames(temp1) <- c("Trial", "Block")
+
+#Pair
+data3$Block <- lookup(terms = data3$Trial,
+                      key.match = temp1$Trial,
+                      key.reassign = temp1$Block)
+
+save.image("Exp3.RData")
+```
+
+
+#Model fit
+
+```{r}
+#Restrict to the interested areas
+
+head(data3)
+
+data31 <- data3[which(data3$Chunk %in% c(13, 16)), ]
+
+data31$Phase <- factor(data31$Phase)
+
+contrasts(data31$Phase) = contr.sum(2)
+
+contrasts(data31$Phase)
+
+data31$Direction <- factor(data31$Direction)
+
+contrasts(data31$Direction) = contr.sum(3)
+
+contrasts(data31$Direction)
+
+f0 <- F1_Change ~ Direction * Phase * Lexical + 
+  (Direction * Phase | Speaker) 
+
+m.order <- buildmer(f0,
+                    data = data31,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data31,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m3 <- lmer(f2,
+           data = data31,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+car::Anova(m3, type = 3)
+
+#Post-hoc
+
+testInteractions(m3, 
+                 pairwise = c("Direction"))
+
+testInteractions(m3, 
+                 fixed = c("Direction"))
+```
+
+```{r}
+#SE
+
+aggregate(data31$F1_Change,
+          list(data31$Direction), 
+                   FUN = plotrix::std.error) 
+
+#Effect size
+
+r2beta(m3, partial = TRUE, 
+       method = "nsj")
+```
+
+```{r}
+#Cohen's d, Direction
+
+temp1 <- data31[which(data31$Direction == "Upshift"), "F1_Change"]
+temp2 <- data31[which(data31$Direction == "Downshift"), "F1_Change"]
+
+cohen.d(temp1, temp2)
+```
+
+#Test the Baseline difference
+
+```{r}
+#S1
+
+temp1 <- data3[which(data3$Phase == "Baseline"), ]
+
+temp1 <- temp1[which(temp1$Direction != "Unshifted"), ]
+
+temp1 <- temp1[which(temp1$Chunk == 3), ]
+
+f0 <- meanF1_mel ~ Word + 
+  (Word| Speaker)
+
+m.order <- buildmer(f1,
+                    data = temp1,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = temp1,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f <- formula(m.backward@model))
+
+#meanF1_mel ~ 1 + (1 | Speaker)
+
+```
+
+```{r}
+
+```
