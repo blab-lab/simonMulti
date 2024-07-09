@@ -1,0 +1,295 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+
+library(sp)
+library(beepr)
+
+library(mgcv)
+library(itsadug)
+
+rm(list=ls()) #Clear environment
+
+load("Exp2.RData")
+```
+
+#Prep
+```{r}
+data2$Speaker <- factor(data2$Speaker)
+
+data2$Direction <- factor(data2$Direction)
+
+contrasts(data2$Direction) = contr.sum(3)
+
+contrasts(data2$Direction)
+
+#Add Start info
+
+data2$Initial <- ifelse(data2$Block == 1, TRUE, FALSE)
+
+table(data2$Block, data2$Direction)
+```
+
+#Model
+```{r}
+#Adding nonlinear pattern over Blocks
+
+m2A <- bam(F1_Change ~ Direction +  
+              s(Block, bs = "tp", k = 20),  
+            data = data2, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m2A)
+
+m2A_AR <- bam(formula(m2A), 
+            rho = var_AR[2], AR.start = data2$Initial,
+            data = data2, method = "ML")
+
+summary(m2A_AR) 
+gam.check(m2A_AR)
+
+#beep(sound = 0)
+```
+
+```{r}
+#Adding nonlinear pattern over Blocks for each Direction
+
+m2B <- bam(F1_Change ~ Direction +  
+              s(Block, bs = "tp", by = Direction, k = 20), 
+            data = data2, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m2B)
+
+m2B_AR <- bam(formula(m2B), 
+            rho = var_AR[2], AR.start = data2$Initial,
+            data = data2, method = "ML")
+
+#Model comparison
+
+compareML(m2A_AR, m2B_AR) #model m2B_AR has lower AIC.
+
+#beep(sound = 0)
+```
+
+```{r}
+#Add random intercept by speaker
+m2C <- bam(F1_Change ~ Direction +  
+             s(Block, by = Direction, k = 20) + 
+             s(Speaker, bs = "re"),
+           data = data2, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m2C)
+
+m2C_AR <- bam(formula(m2C), 
+            rho = var_AR[2], AR.start = data2$Initial,
+            data = data2, method = "ML")
+
+compareML(m2B_AR, m2C_AR) #model m2C_AR has lower AIC.
+
+#beep(sound = 0)
+```
+
+```{r}
+#Add random intercept by Speaker per Direction (as a random slope)
+m2D <- bam(F1_Change ~ Direction +  
+             s(Block, by = Direction, k = 20) + 
+             s(Speaker, Direction, bs = "re"),
+           data = data2, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m2D)
+
+m2D_AR <- bam(formula(m2D), 
+            rho = var_AR[2], AR.start = data2$Initial,
+            data = data2, method = "ML")
+
+compareML(m2C_AR, m2D_AR) #Model m2D_AR preferred
+
+#beep(sound = 0)
+```
+
+```{r}
+#Try adding by speaker smooth
+m2E <- bam(F1_Change ~ Direction +  
+             s(Block, by = Direction, k = 20) + 
+             s(Speaker, Direction, bs = "re") +
+             s(Block, Speaker,bs = "fs",m = 1),
+           data = data2, method = "ML")
+
+#Remove autocorrelation
+
+var_AR <- acf_resid(m2E)
+
+m2E_AR <- bam(formula(m2E), 
+            rho = var_AR[2], AR.start = data2$Initial,
+            data = data2, method = "ML")
+
+compareML(m2D_AR, m2E_AR) #model m2E_AR has lower AIC.
+
+#beep(sound = 0)
+```
+
+#Visualize results 
+
+```{r}
+two.colors = c("blue", "gray", "red")
+
+plot_smooth(m2E_AR, view = "Block", 
+            plot_all = c("Direction"),
+            #se = 0, lwd = 2,
+            legend_plot_all = "topleft",
+            xlab = "Block",
+            ylab = "F1 change (mel)", 
+            main = "Fitted values", 
+            rug = FALSE, col = two.colors)
+
+plot_diff(m2E_AR, view = "Block",
+          xlab = "Block",
+          ylab = "F1 change (mel)", 
+          main = "Downshift - Upshift", 
+          comp = list(Direction = c("Downshift", "Upshift")))
+
+var_AR <- acf_resid(m2E_AR)
+
+```
+
+#Obtain fitted values
+
+```{r}
+data2a <- get_fitted(m2E_AR, 
+                    se = 1, 
+                    as.data.frame = TRUE)
+```
+
+#Plot
+```{r}
+#Summary of raw data
+
+temp1 <- aggregate(data2$F1_Change,
+                   list(data2$Direction, data2$Block),
+                   FUN = mean)
+
+colnames(temp1) <- c("Direction", "Block", "Value")
+
+#Summary of fitted value
+
+temp2 <- aggregate(data2a$fit,
+                   list(data2a$Direction, data2a$Block),
+                   FUN = mean)
+
+colnames(temp2) <- c("Direction", "Block", "Fitted")
+
+#Summary of CI
+
+temp3 <- aggregate(data2a$CI,
+                   list(data2a$Direction, data2a$Block),
+                   FUN = mean)
+
+colnames(temp3) <- c("Direction", "Block", "CI")
+
+#Combine CI with the fitted values
+
+temp2$Tracer <- paste(temp2$Block, temp2$Direction, sep = "_")
+
+temp3$Tracer <- paste(temp3$Block, temp3$Direction, sep = "_")
+
+temp2$CI <- lookup(terms = temp2$Tracer,
+                   key.match = temp3$Tracer,
+                   key.reassign = temp3$CI)
+
+#Set labels
+
+temp1$Direction <- factor(temp1$Direction, levels = c("Downshift", "Unshifted", "Upshift"))
+temp2$Direction <- factor(temp2$Direction, levels = c("Downshift", "Unshifted", "Upshift"))
+```
+
+```{r}
+table(data2$Block, data2$Phase)
+
+#Set up bars and labels
+bar_1 = 20.5
+bar_2 = 50.5
+bar_3 = 120.5
+
+var_Baseline = bar_1 / 2
+var_Ramp = (bar_1 + bar_2) /2 
+var_Hold = (bar_2 + bar_3) /2 
+var_Washout = bar_3 + 7
+```
+
+```{r}
+ggplot() +
+  geom_hline(yintercept = 0, color = "black", linewidth = 0.3) + 
+  geom_vline(xintercept = bar_1, linetype = "twodash", 
+             color = "black", linewidth = 0.3) + 
+  geom_vline(xintercept = bar_2, linetype = "twodash", 
+             color = "black", linewidth = 0.3) + 
+  geom_vline(xintercept = bar_3, linetype = "twodash", 
+             color = "black", linewidth = 0.3) + 
+  annotate(geom = "text", x = var_Baseline, y = 25, 
+           label = "Baseline",color = "black", size = 3.5) +  
+  annotate(geom = "text", x = var_Ramp, y = 25, 
+           label = "Ramp", color = "black", size = 3.5) + 
+  annotate(geom = "text", x = var_Hold, y = 25, 
+           label = "Hold", color = "black", size = 3.5) + 
+  annotate(geom = "text", x = var_Washout, y = 25, 
+           label = "Washout", color = "black", size = 3.5) +
+  geom_point(data = temp1, 
+             aes(x = Block, y = Value, color = Direction),
+             alpha = 0.3) +
+  geom_line(data = temp2, 
+            aes(x = Block, y = Fitted, color = Direction),
+            linewidth = 1) + 
+  geom_ribbon(data = temp2, aes(x = Block, 
+                                ymin = Fitted + CI, 
+                                ymax = Fitted - CI, 
+                                fill = Direction),
+              alpha = 0.2) + 
+  theme_classic() +
+  ylab("F1 change (mel)") +
+  xlab("Block") +
+  scale_color_manual(values = c("blue", "gray", "red")) +
+  scale_fill_manual(values = c("blue", "gray", "red")) +
+  theme(legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.position = c(0.5, 0.15)) +
+  scale_x_continuous(limits = c(1, max(data2$Block) + 5), 
+                     expand = c(0, 0),
+                     breaks = c(10, 20, 30, 50, 60, 120, 130)) +
+  ggtitle("Experiment 2")
+
+ggsave(filename = "H:/Shared drives/SMNG/Experiments/simonMultisyllable/Manuscript/PlotGen/2G.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 6.5,
+       height = 4)
+```
+
+#Clear up and save
+
+```{r}
+rm(m2A)
+rm(m2A_AR)
+rm(m2B)
+rm(m2B_AR)
+rm(m2C)
+rm(m2C_AR)
+rm(m2D)
+rm(m2D_AR)
+
+save.image("Exp2.RData")
+```
+

@@ -1,0 +1,241 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(r2glmm)
+library(effsize)
+library(performance)
+
+rm(list=ls()) #Clear environment
+
+load("Exp2.RData")
+```
+
+#F1, Baseline, Word
+
+```{r}
+data23 <- data2[which(data2$Phase == "Baseline"), ]
+
+data23 <- data23[which(data23$Chunk == max(data23$Chunk)), ]
+
+data23 <- data23[which(data23$Direction != "Unshifted"), ]
+```
+
+```{r}
+f0 <- meanF1_mel ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = data23,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data23,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#F1, Baseline, Direction
+
+```{r}
+f0 <- meanF1_mel ~  Direction + 
+  (Direction | Speaker) + 
+  (Direction | Word)
+
+m.order <- buildmer(f0,
+                    data = data23,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data23,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#F2, Baseline, Word
+```{r}
+data24 <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F2_Exp2_S1.csv")
+
+var1 <- length(unique(data24$Word)) * 10
+
+data24$Chunk <- ceiling(data24$Trial/var1)
+
+data24 <- data24[which(data24$Phase == "Baseline"), ]
+
+data24 <- data24[which(data24$Chunk == max(data24$Chunk)), ]
+
+data24 <- data24[which(data24$Shift != "Unshifted"), ]
+
+```
+
+```{r}
+f0 <- meanF2_mel ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = data24,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data24,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+
+```
+
+Fixed effects:
+            Estimate Std. Error t value             Pr(>|t|)    
+(Intercept) 1382.086     11.933 115.819 < 0.0000000000000002 ***
+Wordsever    -12.378      2.177  -5.687         0.0000000129 ***
+
+#F2, Baseline, Word
+
+```{r}
+f0 <- meanF2_mel ~ Shift + 
+  (Shift | Speaker) + 
+  (Shift | Word)
+
+m.order <- buildmer(f0,
+                    data = data24,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data24,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#F3, Baseline, Word
+```{r}
+data25 <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F3_Exp2_S1.csv")
+
+var1 <- length(unique(data25$Word)) * 10
+
+data25$Chunk <- ceiling(data25$Trial/var1)
+
+data25 <- data25[which(data25$Phase == "baseline"), ]
+
+data25 <- data25[which(data25$Chunk == max(data25$Chunk)), ]
+
+data25 <- data25[which(data25$Shift != "Unshifted"), ]
+```
+
+```{r}
+f0 <- Median ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = data25,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data25,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+Fixed effects:
+            Estimate Std. Error t value            Pr(>|t|)    
+(Intercept)  2790.41      32.21  86.634 <0.0000000000000002 ***
+Wordsever     -13.66      40.82  -0.335               0.738  
+
+#F3, Baseline, Shift
+
+```{r}
+f0 <- Median ~ Shift + 
+  (Shift | Speaker) +
+  (Shift | Word)
+
+m.order <- buildmer(f0,
+                    data = data25,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data25,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+Fixed effects:
+             Estimate Std. Error t value            Pr(>|t|)    
+(Intercept)  2786.909     41.585  67.017 <0.0000000000000002 ***
+ShiftUpshift   -6.694     40.918  -0.164                0.87 
+
+
+#Save and clear
+
+```{r}
+rm(m.backward)
+rm(m.order)
+
+save.image("Exp2.RData")
+```
+

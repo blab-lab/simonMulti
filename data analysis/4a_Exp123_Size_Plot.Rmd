@@ -1,0 +1,278 @@
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+
+library(qdapTools)
+
+rm(list=ls()) #Clear environment
+
+load("Exp1.RData")
+load("Exp2.RData")
+load("Exp3.RData")
+
+rm(list = ls(pattern = "m")) #Clear environment
+
+#load("Size123.RData")
+```
+
+#Prep
+
+```{r}
+#Experiment 1
+
+##Diff
+
+temp1 <- aggregate(data11$F1_Change, 
+                   list(data11$Direction, data11$Phase, data11$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Phase", "Speaker", "F1_Change")
+
+temp1 <- spread(temp1, value = F1_Change, key = Direction)
+
+temp1$Diff <- temp1$Downshift - temp1$Upshift
+
+##Lexical frequency
+
+temp2 <- aggregate(data11$Lexical, 
+                   list(data11$Direction, data11$Phase, data11$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Direction", "Phase", "Speaker", "Lexical")
+
+temp2 <- spread(temp2, value = Lexical, key = Direction)
+
+temp2$Lexical <- (temp2$Downshift + temp2$Upshift)/2
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Phase, sep = "_")
+temp2$Tracer <- paste(temp2$Speaker, temp2$Phase, sep = "_")
+
+temp1$Lexical <- lookup(terms = temp1$Tracer, 
+                        key.match = temp2$Tracer,
+                        key.reassign = temp2$Lexical)
+
+#Duration
+
+temp2 <- aggregate(data11$Duration, 
+                   list(data11$Direction, data11$Phase, data11$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Direction", "Phase", "Speaker", "Duration")
+
+temp2 <- spread(temp2, value = Duration, key = Direction)
+
+temp2$Duration <- (temp2$Downshift + temp2$Upshift)/2
+
+temp2$Tracer <- paste(temp2$Speaker, temp2$Phase, sep = "_")
+
+temp1$Duration <- lookup(terms = temp1$Tracer, 
+                        key.match = temp2$Tracer,
+                        key.reassign = temp2$Duration)
+
+#Finalize 
+
+temp1$Exp <- "1"
+
+data4 <- temp1
+```
+
+```{r}
+#Experiment 2
+
+##Diff
+
+temp1 <- aggregate(data21$F1_Change, 
+                   list(data21$Direction, data21$Phase, data21$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Phase", "Speaker", "F1_Change")
+
+temp1 <- spread(temp1, value = F1_Change, key = Direction)
+
+temp1$Diff <- temp1$Downshift - temp1$Upshift
+
+##Lexical frequency
+
+temp2 <- aggregate(data21$Lexical, 
+                   list(data21$Direction, data21$Phase, data21$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Direction", "Phase", "Speaker", "Lexical")
+
+temp2 <- spread(temp2, value = Lexical, key = Direction)
+
+temp2$Lexical <- (temp2$Downshift + temp2$Upshift)/2
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Phase, sep = "_")
+temp2$Tracer <- paste(temp2$Speaker, temp2$Phase, sep = "_")
+
+temp1$Lexical <- lookup(terms = temp1$Tracer, 
+                        key.match = temp2$Tracer,
+                        key.reassign = temp2$Lexical)
+
+#Duration
+
+temp2 <- aggregate(data21$Duration, 
+                   list(data21$Direction, data21$Phase, data21$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Direction", "Phase", "Speaker", "Duration")
+
+temp2 <- spread(temp2, value = Duration, key = Direction)
+
+temp2$Duration <- (temp2$Downshift + temp2$Upshift)/2
+
+temp2$Tracer <- paste(temp2$Speaker, temp2$Phase, sep = "_")
+
+temp1$Duration <- lookup(terms = temp1$Tracer, 
+                        key.match = temp2$Tracer,
+                        key.reassign = temp2$Duration)
+
+#Finalize 
+
+temp1$Exp <- "2"
+
+data4 <- rbind(data4, temp1)
+```
+
+```{r}
+#Experiment 3
+
+##Diff
+
+temp1 <- aggregate(data31$F1_Change, 
+                   list(data31$Direction, data31$Phase, data31$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Phase", "Speaker", "F1_Change")
+
+temp1 <- spread(temp1, value = F1_Change, key = Direction)
+
+temp1$Diff <- temp1$Downshift - temp1$Upshift
+
+##Lexical frequency
+
+temp2 <- aggregate(data31$Lexical, 
+                   list(data31$Direction, data31$Phase, data31$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Direction", "Phase", "Speaker", "Lexical")
+
+temp2 <- spread(temp2, value = Lexical, key = Direction)
+
+temp2$Lexical <- (temp2$Downshift + temp2$Upshift)/2
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Phase, sep = "_")
+temp2$Tracer <- paste(temp2$Speaker, temp2$Phase, sep = "_")
+
+temp1$Lexical <- lookup(terms = temp1$Tracer, 
+                        key.match = temp2$Tracer,
+                        key.reassign = temp2$Lexical)
+
+#Duration
+
+temp2 <- aggregate(data31$Duration, 
+                   list(data31$Direction, data31$Phase, data31$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Direction", "Phase", "Speaker", "Duration")
+
+temp2 <- spread(temp2, value = Duration, key = Direction)
+
+temp2$Duration <- (temp2$Downshift + temp2$Upshift)/2
+
+temp2$Tracer <- paste(temp2$Speaker, temp2$Phase, sep = "_")
+
+temp1$Duration <- lookup(terms = temp1$Tracer, 
+                        key.match = temp2$Tracer,
+                        key.reassign = temp2$Duration)
+
+#Finalize 
+
+temp1$Exp <- "3"
+
+data4 <- rbind(data4, temp1)
+```
+
+#Plot
+
+```{r}
+temp1 <- aggregate(data4$Diff, 
+                   list(data4$Exp, data4$Phase), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Exp", "Phase", "Diff")
+
+temp2 <- aggregate(data4$Diff, 
+                   list(data4$Exp, data4$Phase), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+#Individual means
+
+temp2 <- aggregate(data4$Diff, 
+                   list(data4$Exp, data4$Phase, data4$Speaker), 
+                   FUN = mean) 
+
+colnames(temp2) <- c("Exp", "Phase", "Speaker", "Diff")
+
+
+#Add names
+
+temp1$Label <- ifelse(temp1$Exp == "1", "Experiment 1\nMonosyllabic",
+                    ifelse(temp1$Exp == "2", "Experiment 2\nDisyllabic",
+                           "Experiment 3\nTrisyllabic"))
+
+
+temp2$Label <- ifelse(temp2$Exp == "1", "Experiment 1\nMonosyllabic",
+                    ifelse(temp2$Exp == "2", "Experiment 2\nDisyllabic",
+                           "Experiment 3\nTrisyllabic"))
+```
+
+```{r}
+ggplot(data = temp1, aes(x = Label, y = Diff, color = Label, shape = Label)) + 
+  theme_classic() + 
+  facet_grid(. ~ Phase) +
+  ylab("Downshift - Upshift (mel)") + 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.5) + 
+  geom_point(size = 2.5) + 
+  geom_point(data = temp2, aes(x = Label, y = Diff), 
+             position = position_jitter(w = 0.2, h = 0), 
+             alpha = 0.4, size = 2.5) +
+  geom_errorbar(aes(ymin = Diff - se, ymax = Diff + se), 
+                width = 0.5, linewidth = 1,
+                position = position_dodge(0)) + 
+  theme(legend.position = "none", 
+        legend.title = element_blank(), 
+        axis.title.x = element_blank(),
+        plot.title = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.2)),
+        axis.text = element_text(size = rel(1)),
+        strip.text.x = element_text(size = rel(1.5))) +
+  scale_shape_manual(values = c(19, 17, 15)) +
+  scale_color_manual(values = c("#E69F03", "#00B050", "#7030A0")) +
+  ggtitle("Differential adaptation and individual means")
+
+ggsave(filename = "H:/Shared drives/SMNG/Experiments/simonMultisyllable/Manuscript/PlotGen/6A.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 7,
+       height = 3.5)
+```
+
+#Save
+```{r}
+
+save.image("Size123.RData")
+```
+
+

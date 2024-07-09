@@ -1,0 +1,271 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(r2glmm)
+library(effsize)
+library(performance)
+
+rm(list=ls()) #Clear environment
+
+load("Exp1.RData")
+```
+
+#Main model
+
+```{r}
+#Restrict to the interested areas
+
+table(data1$Phase, data1$Chunk)
+
+data11 <- data1[which(data1$Chunk %in% c(13, 16)), ]
+
+data11$Direction <- factor(data11$Direction)
+
+contrasts(data11$Direction) = contr.sum(3)
+
+contrasts(data11$Direction)
+
+data11$Phase <- factor(data11$Phase)
+
+contrasts(data11$Phase) = contr.sum(2)
+
+contrasts(data11$Phase)
+```
+
+```{r}
+f0 <- F1_Change ~ Direction * Phase + 
+  (Direction * Phase | Speaker) + 
+  (Direction * Phase | Word)
+
+m.order <- buildmer(f0,
+                    data = data11,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data11,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m1 <- lmer(f2,
+           data = data11,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m1)
+summary(m1)
+
+car::Anova(m1, type = 3)
+
+save.image("Exp1.RData")
+```
+
+```{r}
+#Post-hoc
+testInteractions(m1, 
+                 pairwise = c("Direction"))
+
+testInteractions(m1, 
+                 fixed = c("Direction"))
+```
+
+```{r}
+#Summary
+aggregate(data11$F1_Change,
+          list(data11$Direction), 
+                   FUN = plotrix::std.error) 
+
+#Effect size
+
+r2beta(m1, partial = TRUE, 
+       method = "nsj")
+
+#Cohen's d, Direction
+
+temp1 <- data11[which(data11$Direction == "Upshift"), "F1_Change"]
+temp2 <- data11[which(data11$Direction == "Downshift"), "F1_Change"]
+temp3 <- data11[which(data11$Direction == "Unshifted"), "F1_Change"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+```
+
+#Words
+
+```{r}
+data12 <- data11[which(data11$Direction != "Unshifted"), ]
+data12$F1_Word <- ifelse(data12$Direction == "Downshift", data12$F1_Change,
+                         data12$F1_Change * -1)
+
+data12$Direction <- factor(data12$Direction)
+
+contrasts(data12$Direction) = contr.sum(2)
+
+contrasts(data12$Direction)
+```
+
+```{r}
+f0 <- F1_Word ~ Word * Direction * Phase + 
+  (Word * Direction * Phase | Speaker) 
+
+m.order <- buildmer(f0,
+                    data = data12,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data12,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m1a <- lmer(f2,
+           data = data12,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m1a)
+summary(m1a)
+
+car::Anova(m1a, type = 3)
+
+save.image("Exp1.RData")
+
+r2beta(m1a, partial = TRUE, 
+       method = "nsj")
+```
+
+#Supp, F1 change with lexical frequency
+
+```{r}
+f0 <- F1_Change ~ Direction * Phase * Lexical + 
+  (Direction * Phase * Lexical | Speaker) + 
+  (Direction * Phase * Lexical| Word)
+
+m.order <- buildmer(f0,
+                    data = data11,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data11,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m1b <- lmer(f2,
+           data = data11,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m1b)
+summary(m1b)
+
+r2beta(m1b, partial = TRUE, 
+       method = "nsj")
+
+car::Anova(m1b, type = 3)
+
+save.image("Exp1.RData")
+
+```
+
+#Supp, F1 diff with lexical frequency
+```{r}
+f0 <- F1_Word ~ Direction * Phase * Lexical + 
+  (Direction * Phase * Lexical | Speaker) + 
+  (Direction * Phase * Lexical| Word)
+  
+
+m.order <- buildmer(f0,
+                    data = data12,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data12,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m1c <- lmer(f2,
+           data = data12,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m1c)
+summary(m1c)
+
+r2beta(m1c, partial = TRUE, 
+       method = "nsj")
+
+car::Anova(m1c, type = 3)
+
+save.image("Exp1.RData")
+```
+
+#Clearing up and save
+```{r}
+rm(m.backward)
+rm(m.order)
+
+save.image("Exp1.RData")
+```

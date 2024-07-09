@@ -1,0 +1,383 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(r2glmm)
+library(effsize)
+library(performance)
+
+rm(list=ls()) #Clear environment
+
+load("Exp3.RData")
+```
+
+#F1, Baseline, Word, S2
+
+```{r}
+DATA <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F1_Exp3_S2.csv")
+
+var1 <- length(unique(DATA$Word)) * 10
+
+DATA$Chunk <- ceiling(DATA$Trial/var1)
+
+DATA <- DATA[which(DATA$Phase == "Hold"), ]
+
+DATA <- DATA[which(DATA$Chunk == max(DATA$Chunk)), ]
+
+DATA <- DATA[which(DATA$Shift != "Unshifted"), ]
+```
+
+```{r}
+f0 <- meanF1_mel ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = DATA,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = DATA,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+Fixed effects:
+             Estimate Std. Error t value            Pr(>|t|)    
+(Intercept)   592.762     12.062   49.14 <0.0000000000000002 ***
+Wordpedigree    3.732      4.056    0.92               0.358   
+
+
+#F1, Baseline, Direction, S2
+
+```{r}
+f0 <- meanF1_mel ~ Shift + 
+  (Direction | Speaker) + 
+  (Direction | Word)
+
+m.order <- buildmer(f0,
+                    data = DATA,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = DATA,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+Fixed effects:
+             Estimate Std. Error t value             Pr(>|t|)    
+(Intercept)   600.691     11.661  51.511 < 0.0000000000000002 ***
+ShiftUpshift  -12.126      2.327  -5.211          0.000000187 ***
+
+
+#F2, Baseline, Word, S2
+```{r}
+DATA <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F2_Exp3_S2.csv")
+
+var1 <- length(unique(DATA$Word)) * 10
+
+DATA$Chunk <- ceiling(DATA$Trial/var1)
+
+DATA <- DATA[which(DATA$Phase == "Hold"), ]
+
+DATA <- DATA[which(DATA$Chunk == max(DATA$Chunk)), ]
+
+DATA <- DATA[which(DATA$Shift != "Unshifted"), ]
+
+```
+
+```{r}
+f0 <- meanF2_mel ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = DATA,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = DATA,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+
+```
+
+Fixed effects:
+             Estimate Std. Error t value            Pr(>|t|)    
+(Intercept)  1536.607     13.899 110.554 <0.0000000000000002 ***
+Wordpedigree  -10.099      5.433  -1.859               0.063 .  
+
+#F2, Baseline, Shift
+
+```{r}
+f0 <- meanF2_mel ~ Shift + 
+  (Shift | Speaker) + 
+  (Shift | Word)
+
+m.order <- buildmer(f0,
+                    data = DATA,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = DATA,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+Fixed effects:
+             Estimate Std. Error t value            Pr(>|t|)    
+(Intercept)  1526.356     14.352 106.355 <0.0000000000000002 ***
+ShiftUpshift   10.404      5.402   1.926              0.0541 .  
+
+#F3, Baseline, Word
+```{r}
+DATA <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F3_Exp3_S2.csv")
+
+var1 <- length(unique(DATA$Word)) * 10
+
+DATA$Chunk <- ceiling(DATA$Trial/var1)
+
+DATA <- DATA[which(DATA$Phase == "hold"), ]
+
+DATA <- DATA[which(DATA$Chunk == max(DATA$Chunk)), ]
+
+DATA <- DATA[which(DATA$Shift != "Unshifted"), ]
+```
+
+```{r}
+f0 <- Median ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = DATA,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = DATA,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+Fixed effects:
+             Estimate Std. Error t value            Pr(>|t|)    
+(Intercept)   2518.00      60.73  41.465 <0.0000000000000002 ***
+Wordpedigree   -67.52      42.85  -1.576               0.115    
+
+#F3, Baseline, Shift
+
+```{r}
+f0 <- Median ~ Shift + 
+  (Shift | Speaker) +
+  (Shift | Word)
+
+m.order <- buildmer(f0,
+                    data = DATA,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = DATA,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+Fixed effects:
+             Estimate Std. Error t value            Pr(>|t|)    
+(Intercept)   2478.07      62.74   39.49 <0.0000000000000002 ***
+ShiftUpshift    12.27      45.48    0.27               0.787    
+
+#F1 change in the Hold
+
+```{r}
+DATA <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F1_Exp3_S2.csv")
+
+var1 <- length(unique(DATA$Word)) * 10
+
+DATA$Chunk <- ceiling(DATA$Trial/var1)
+
+#Normalization
+
+data <- DATA[which(DATA$Phase %in% c("Baseline")), ]
+data <- data[which(data$Chunk == max(data$Chunk)), ]
+
+temp1 <- aggregate(data$meanF1_mel, 
+                   list(data$Shift, data$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Speaker", "F1_Baseline")
+
+DATA$Tracer <- paste(DATA$Shift, DATA$Speaker, sep = "_")
+temp1$Tracer <- paste(temp1$Direction, temp1$Speaker, sep = "_")
+
+DATA$F1_Baseline <- lookup(terms = DATA$Tracer,
+                         key.match = temp1$Tracer,
+                         key.reassign = temp1$F1_Baseline)
+
+DATA$F1_Change <- DATA$meanF1_mel - DATA$F1_Baseline
+```
+
+```{r}
+#Modeling
+
+table(DATA$Chunk, DATA$Phase)
+
+data <- DATA[which(DATA$Chunk %in% c(12, 13)), ]
+data <- data[which(data$Shift != "Unshifted"), ]
+
+f0 <- F1_Change ~ Shift * Phase + 
+  (Shift * Phase | Speaker) + 
+  (Shift * Phase | Word)
+
+m.order <- buildmer(f0,
+                    data = data,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m3_S2 <- lmer(f2,
+           data = data,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+car::Anova(m3_S2, type = 3)
+
+formula(m3_S2)
+
+r2beta(m3_S2, partial = TRUE, 
+       method = "nsj")
+
+testInteractions(m3_S2,
+                 pairwise = "Shift",
+                 fixed = "Phase")
+
+testInteractions(m3_S2,
+                 fixed = "Shift")
+
+```
+
+```{r}
+#Summary
+
+aggregate(data$F1_Change,
+          list(data$Shift, data$Phase), 
+                   FUN = mean) 
+
+aggregate(data$F1_Change,
+          list(data$Shift, data$Phase), 
+                   FUN = plotrix::std.error) 
+
+
+aggregate(data$F1_Change,
+          list(data$Shift), 
+                   FUN = plotrix::std.error) 
+
+#Cohen's d, Direction
+
+temp1 <- data[which(data$Shift == "Downshift"), "F1_Change"]
+temp2 <- data[which(data$Shift == "Upshift"), "F1_Change"]
+
+cohen.d(temp1, temp2)
+
+
+temp1 <- data[which(data$Shift == "Downshift" & data$Phase == "Hold"), "F1_Change"]
+temp2 <- data[which(data$Shift == "Upshift" & data$Phase == "Hold"), "F1_Change"]
+
+cohen.d(temp1, temp2)
+
+temp1 <- data[which(data$Shift == "Downshift" & data$Phase == "Washout"), "F1_Change"]
+temp2 <- data[which(data$Shift == "Upshift" & data$Phase == "Washout"), "F1_Change"]
+
+cohen.d(temp1, temp2)
+```
+
+
+#Save and clear
+
+```{r}
+rm(m.backward)
+rm(m.order)
+
+save.image("Exp3.RData")
+```
+

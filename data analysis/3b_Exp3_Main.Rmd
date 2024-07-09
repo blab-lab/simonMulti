@@ -1,0 +1,495 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+#library(MuMIn)
+library(r2glmm)
+library(effsize)
+
+rm(list=ls()) #Clear environment
+
+load("Exp3.RData")
+```
+
+#Model
+
+```{r}
+#Restrict to the interested areas
+
+head(data3)
+
+data31 <- data3[which(data3$Chunk %in% c(12, 13)), ]
+
+data31$Direction <- factor(data31$Direction)
+
+contrasts(data31$Direction) = contr.sum(3)
+
+contrasts(data31$Direction)
+
+data31$Phase <- factor(data31$Phase)
+
+contrasts(data31$Phase) = contr.sum(2)
+
+contrasts(data31$Phase)
+```
+
+```{r}
+f0 <- F1_Change ~ Direction * Phase + 
+  (Direction * Phase | Speaker) + 
+  (Direction * Phase | Word)
+
+m.order <- buildmer(f0,
+                    data = data31,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data31,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+
+```{r}
+m3 <- lmer(f2,
+           data = data31,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+car::Anova(m3, type = 3)
+
+formula(m3)
+
+summary(m3)
+
+save.image("Exp3.RData")
+```
+
+```{r}
+#Post-hoc
+testInteractions(m3, 
+                 pairwise = c("Direction"))
+
+testInteractions(m3, 
+                 fixed = c("Direction"))
+
+testInteractions(m3, 
+                 pairwise = c("Phase"))
+
+testInteractions(m3, 
+                 fixed = c("Phase"))
+```
+
+```{r}
+#Summary
+aggregate(data31$F1_Change,
+          list(data31$Direction), 
+                   FUN = plotrix::std.error) 
+
+aggregate(data31$F1_Change,
+          list(data31$Phase), 
+                   FUN = plotrix::std.error) 
+
+#Effect size
+
+r2beta(m3, partial = TRUE, 
+       method = "nsj")
+
+#Cohen's d, Direction
+
+temp1 <- data31[which(data31$Direction == "Upshift"), "F1_Change"]
+temp2 <- data31[which(data31$Direction == "Downshift"), "F1_Change"]
+temp3 <- data31[which(data31$Direction == "Unshifted"), "F1_Change"]
+
+cohen.d(temp1, temp2)
+cohen.d(temp1, temp3)
+cohen.d(temp2, temp3)
+
+#Cohen's d, Phase
+
+temp1 <- data31[which(data31$Phase == "Hold"), "F1_Change"]
+temp2 <- data31[which(data31$Phase == "Washout"), "F1_Change"]
+
+cohen.d(temp1, temp2)
+
+
+save.image("Exp3.RData")
+```
+
+#Words
+
+```{r}
+data32 <- data31[which(data31$Direction != "Unshifted"), ]
+data32$F1_Word <- ifelse(data32$Direction == "Downshift", data32$F1_Change,
+                         data32$F1_Change * -1)
+
+data32$Direction <- factor(data32$Direction)
+
+contrasts(data32$Direction) = contr.sum(2)
+
+contrasts(data32$Direction)
+```
+
+```{r}
+f0 <- F1_Word ~ Word * Direction * Phase + 
+  (Word * Direction * Phase | Speaker) 
+
+m.order <- buildmer(f0,
+                    data = data32,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data32,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m3a <- lmer(f2,
+           data = data32,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m3a)
+summary(m3a)
+
+car::Anova(m3a, type = 3)
+
+save.image("Exp3.RData")
+
+r2beta(m3a, partial = TRUE, 
+       method = "nsj")
+```
+
+#Supp, F1 change with lexical frequency
+
+```{r}
+f0 <- F1_Change ~ Direction * Phase * Lexical + 
+  (Direction * Phase * Lexical | Speaker) + 
+  (Direction * Phase * Lexical| Word)
+
+m.order <- buildmer(f0,
+                    data = data31,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data31,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m3b <- lmer(f2,
+           data = data31,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m3b)
+summary(m3b) #Model rank deficient
+
+car::Anova(m3b, type = 3)
+
+save.image("Exp3.RData") 
+```
+
+```{r}
+#Try removing the unshifted to address rank deficiency
+
+data31a <- data31[which(data31$Direction != "Unshifted"), ]
+
+data31a$Direction <- factor(data31a$Direction)
+
+f0 <- F1_Change ~ Direction * Phase * Lexical + 
+  (Direction * Phase * Lexical | Speaker) + 
+  (Direction * Phase * Lexical| Word)
+
+m.order <- buildmer(f0,
+                    data = data31a,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data31a,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m3bX <- lmer(f2,
+           data = data31a,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m3bX)
+
+car::Anova(m3bX, type = 3)
+
+save.image("Exp3.RData") 
+
+r2beta(m3bX, partial = TRUE, 
+       method = "nsj")
+
+library(sjPlot)
+
+plot_model(m3bX, type = c("pred"),
+           terms = c("Lexical", "Direction", "Phase"),
+           title = "Predicted F1 change in Experiment 3", 
+           axis.title =  c("Log-transform lexical frequency", "F1 change (mels)"),
+           colors = c("red", "blue"),
+           legend.title = "") +
+  theme_classic()
+
+
+```
+
+```{r}
+#Add bars for real words
+
+temp1 <- aggregate(data31a$F1_Change, 
+                   list(data31a$Word, data31a$Phase, data31a$Direction), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Word", "Phase", "Direction", "Value")
+
+temp2 <- aggregate(data31a$F1_Change, 
+                   list(data31a$Word, data31a$Phase, data31a$Direction), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+temp1$Lex <- ifelse(temp1$Word == "pedigree", 
+                    log10(0.0001414765/100), 
+                    log(0.0000141686/100))
+
+#Predicted 
+
+temp2 <- get_model_data(m3bX, type = c("pred"),
+           terms = c("Lexical", "Direction", "Phase"))
+
+temp2 <- temp2[, c(1:7)]
+
+temp2 <- data.frame(temp2)
+
+colnames(temp2) <- c("x", "predicted", "se", "low", "high", 
+                    "Direction", "Phase")
+
+str(temp2)
+
+temp2$Group <- paste(temp2$Direction, temp2$Phase, sep = "_")
+
+ggplot() +
+  geom_line(data = temp2,
+            aes(x = x, y = predicted, group = Group, color = Direction), 
+            linewidth = 1) + 
+  geom_ribbon(data = temp2, aes(x = x, y = predicted,
+                                ymin = low, ymax = high,
+                                group = Group, fill = Direction),
+              alpha = 0.1) +
+  theme_classic() +
+  scale_color_manual(values = c("red", "blue")) +
+  facet_grid(. ~ Phase) +
+  geom_point(data = temp1, 
+             aes(x = Lex, y = Value, color = Direction),
+             size = 2) +
+  geom_errorbar(data = temp1, 
+                aes(x = Lex, y = Value, 
+                    ymin = Value - se, ymax = Value + se,
+                    color = Direction),
+                width = 0.4) +
+  xlab("Log-transformed lexical frequency") +
+  ylab("F1 change (mels)") +
+  ggtitle("Observed and predicted F1 change in Experiment 3") +
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size = rel(1.5)),
+        plot.title = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.2)),
+        axis.text = element_text(size = rel(1)),
+        strip.text.x = element_text(size = rel(1.5)))
+
+ggsave(filename = "H:/Shared drives/SMNG/Experiments/simonMultisyllable/Manuscript/PlotGen/3I.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 4)
+```
+
+
+#Supp, F1 diff with lexical frequency
+```{r}
+f0 <- F1_Word ~ Direction * Phase * Lexical + 
+  (Direction * Phase * Lexical | Speaker) + 
+  (Direction * Phase * Lexical| Word)
+  
+
+m.order <- buildmer(f0,
+                    data = data32,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data32,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+```{r}
+m3c <- lmer(f2,
+           data = data32,
+           control = lmerControl(optimizer = "bobyqa",
+                                 optCtrl = list(maxfun = 2e5)),
+           REML = TRUE)
+
+formula(m3c)
+summary(m3c)
+
+car::Anova(m3c, type = 3)
+
+save.image("Exp3.RData")
+
+r2beta(m3c, partial = TRUE, 
+       method = "nsj")
+
+plot_model(m3c, type = c("pred"),
+           terms = c("Lexical", "Phase"),
+           title = "Predicted size of F1 change in Experiment 3", 
+           axis.title =  c("Log-transform lexical frequency", "Size of F1 change (mels)"),
+           colors = c("green4", "purple"),
+           legend.title = "") +
+  theme_classic()
+```
+
+```{r}
+#Add bars for real words
+
+temp1 <- aggregate(data31a$F1_Change, 
+                   list(data31a$Word, data31a$Phase), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Word", "Phase", "Value")
+
+temp2 <- aggregate(data31a$F1_Change, 
+                   list(data31a$Word, data31a$Phase), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+temp1$Lex <- ifelse(temp1$Word == "pedigree", 
+                    log10(0.0001414765/100), 
+                    log(0.0000141686/100))
+
+#Predicted 
+
+temp2 <- get_model_data(m3c, type = c("pred"),
+           terms = c("Lexical", "Phase"))
+
+temp2 <- temp2[, c(1:6)]
+
+temp2 <- data.frame(temp2)
+
+colnames(temp2) <- c("x", "predicted", "se", "low", "high", "Phase")
+
+str(temp2)
+
+ggplot() +
+  geom_line(data = temp2,
+            aes(x = x, y = predicted, color = Phase), 
+            linewidth = 1) + 
+  geom_ribbon(data = temp2, aes(x = x, y = predicted,
+                                ymin = low, ymax = high,
+                                fill = Phase),
+              alpha = 0.1) +
+  theme_classic() +
+  scale_color_manual(values = c("green4", "orange")) +
+  geom_point(data = temp1, 
+             aes(x = Lex, y = Value, color = Phase),
+             size = 2) + 
+  geom_errorbar(data = temp1, 
+                aes(x = Lex, y = Value, 
+                    ymin = Value - se, ymax = Value + se,
+                    color = Phase),
+                width = 0.4) + 
+  xlab("Log-transformed lexical frequency") +
+  ylab("F1 change (mels)") +
+  ggtitle("Observed and predicted F1 change in Experiment 3") +
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size = rel(1.5)),
+        plot.title = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.2)),
+        axis.text = element_text(size = rel(1)),
+        strip.text.x = element_text(size = rel(1.5)))
+
+ggsave(filename = "H:/Shared drives/SMNG/Experiments/simonMultisyllable/Manuscript/PlotGen/3J.png",
+       plot = last_plot(), 
+       dpi = 600,
+       width = 9,
+       height = 4)
+```
+
+
+#Clearing up and save
+```{r}
+rm(m.backward)
+rm(m.order)
+
+save.image("Exp3.RData")
+```
+

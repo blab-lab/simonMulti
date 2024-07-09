@@ -1,0 +1,579 @@
+---
+title: "Analysis_Exp123_Hyper_Int"
+output: html_document
+date: "2023-10-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(ggpubr)
+
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(MuMIn)
+library(r2glmm)
+library(effsize)
+library(dlookr)
+
+rm(list=ls()) #Clear environment
+
+load("Exp1.RData")
+load("Exp2.RData")
+load("Exp3.RData")
+
+rm(list = ls(pattern = "m")) #Clear environment
+```
+
+#Normalize Intensity for all experiments
+```{r}
+#Experiment 1
+
+temp1 <- read.csv("Int_Exp1.csv")
+
+#Pair data with data1
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Trial, sep = "_")
+data1$Tracer <- paste(data1$Speaker, data1$Trial, sep = "_")
+
+data1$Int <- lookup(terms = data1$Tracer,
+                   key.match = temp1$Tracer,
+                   key.reassign = temp1$Mean_Int)
+
+temp3 <- data1[which(!is.na(data1$Int)), ]
+```
+
+
+```{r}
+#Normalization
+
+temp1 <- aggregate(temp3$Int, 
+                   list(temp3$Direction, temp3$Chunk, temp3$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Chunk", "Speaker", "Int")
+
+#Limit results to the last 10 trials of baseline 
+
+##Where is it?
+
+temp2 <- data.frame(table(data1$Chunk, data1$Phase))
+temp2 <- temp2[which(temp2$Freq != 0 & temp2$Var2 == "Baseline"),]
+var1 <- max(as.numeric(as.character(temp2$Var1)))
+
+#Found it
+temp1 <- temp1[which(temp1$Chunk == var1), ]
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Direction, sep = "_")
+
+data1$Tracer <- paste(data1$Speaker, data1$Direction, sep = "_")
+
+#Pairing data from temp1 
+
+data1$Int_Baseline <- lookup(terms = data1$Tracer, 
+                             key.match = temp1$Tracer,
+                             key.reassign = temp1$Int)
+
+#Calculate duration change 
+
+data1$Int_Change <- (data1$Int - data1$Int_Baseline)/data1$Int_Baseline
+
+head(data1)
+```
+
+```{r}
+#Experiment 2
+
+temp1 <- read.csv("Int_Exp2.csv")
+
+#Pair data with data1
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Trial, sep = "_")
+data2$Tracer <- paste(data2$Speaker, data2$Trial, sep = "_")
+
+data2$Int <- lookup(terms = data2$Tracer,
+                   key.match = temp1$Tracer,
+                   key.reassign = temp1$Mean_Int)
+
+temp3 <- data2[which(!is.na(data2$Int)), ]
+
+```
+
+```{r}
+#Normalization
+
+temp1 <- aggregate(temp3$Int, 
+                   list(temp3$Direction, temp3$Chunk, temp3$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Chunk", "Speaker", "Int")
+
+#Limit results to the last 10 trials of baseline 
+
+##Where is it?
+
+temp2 <- data.frame(table(data2$Chunk, data2$Phase))
+temp2 <- temp2[which(temp2$Freq != 0 & temp2$Var2 == "Baseline"),]
+var1 <- max(as.numeric(as.character(temp2$Var1)))
+
+#Found it
+temp1 <- temp1[which(temp1$Chunk == var1), ]
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Direction, sep = "_")
+
+data2$Tracer <- paste(data2$Speaker, data2$Direction, sep = "_")
+
+#Pairing data from temp1 
+
+data2$Int_Baseline <- lookup(terms = data2$Tracer, 
+                             key.match = temp1$Tracer,
+                             key.reassign = temp1$Int)
+
+#Calculate duration change 
+
+data2$Int_Change <- (data2$Int - data2$Int_Baseline)/data2$Int_Baseline
+
+head(data2)
+```
+
+```{r}
+#Experiment 3
+
+temp1 <- read.csv("Int_Exp3.csv")
+
+#Pair data with data1
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Trial, sep = "_")
+data3$Tracer <- paste(data3$Speaker, data3$Trial, sep = "_")
+
+data3$Int <- lookup(terms = data3$Tracer,
+                   key.match = temp1$Tracer,
+                   key.reassign = temp1$Mean_Int)
+
+temp3 <- data3[which(!is.na(data3$Int)), ]
+
+```
+
+```{r}
+#Normalization
+
+temp1 <- aggregate(temp3$Int, 
+                   list(temp3$Direction, temp3$Chunk, temp3$Speaker), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Chunk", "Speaker", "Int")
+
+#Limit results to the last 10 trials of baseline 
+
+##Where is it?
+
+temp2 <- data.frame(table(data3$Chunk, data3$Phase))
+temp2 <- temp2[which(temp2$Freq != 0 & temp2$Var2 == "Baseline"),]
+var1 <- max(as.numeric(as.character(temp2$Var1)))
+
+#Found it
+temp1 <- temp1[which(temp1$Chunk == var1), ]
+
+temp1$Tracer <- paste(temp1$Speaker, temp1$Direction, sep = "_")
+
+data3$Tracer <- paste(data3$Speaker, data3$Direction, sep = "_")
+
+#Pairing data from temp1 
+
+data3$Int_Baseline <- lookup(terms = data3$Tracer, 
+                             key.match = temp1$Tracer,
+                             key.reassign = temp1$Int)
+
+#Calculate duration change 
+
+data3$Int_Change <- (data3$Int - data3$Int_Baseline)/data3$Int_Baseline
+
+head(data3)
+```
+
+#Plot Int, Experiment 1
+```{r}
+
+TEMP0 <- data1
+
+#Means by direction
+
+temp1 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Direction, TEMP0$Chunk), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Chunk", "Value")
+
+temp2 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Direction, TEMP0$Chunk), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+temp1$Chunk <- as.numeric(as.character(temp1$Chunk)) * 10
+
+temp1$Exp <- "Experiment 1"
+```
+
+```{r}
+#Set up bars and labels
+
+bar_1 = 35
+bar_2 = 65
+bar_3 = 155
+
+var_Baseline = bar_1 / 2
+var_Ramp = (bar_1 + bar_2) /2 
+var_Hold = (bar_2 + bar_3) /2 
+var_Washout = bar_3 + 18
+```
+
+```{r}
+ggplot(data = temp1, aes(x = Chunk, y = Value, 
+                         color = Direction)) +
+  geom_point() + 
+  geom_line() + 
+  geom_errorbar(aes(ymin = Value - se, ymax = Value + se), 
+                width = 10,
+                position = position_dodge(0)) + 
+  theme_classic() + 
+  ylab("") + 
+  xlab("") + 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_1, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_2, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_3, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  annotate(geom = "text", x = var_Baseline, y = max(temp1$Value), 
+           label = "Baseline",color = "black", size = rel(7)) +  
+  annotate(geom = "text", x = var_Ramp, y = max(temp1$Value), 
+           label = "Ramp", color = "black", size = rel(7)) + 
+  annotate(geom = "text", x = var_Hold, y =  max(temp1$Value), 
+           label = "Hold", color = "black", size = rel(7)) + 
+  annotate(geom = "text", x = var_Washout, y =  max(temp1$Value), 
+           label = "Washout", color = "black", size = rel(7)) +
+  theme(legend.position = c(0.09, 0.6), 
+        legend.title = element_blank(),
+        legend.text = element_text(size = rel(1.5)),
+        legend.background = element_blank(),
+        strip.text = element_text(size = rel(2)),
+        axis.title =  element_text(size = rel(2.5)),
+        axis.text = element_text(size = rel(2))) + 
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(breaks = c(10, 30, 40, 60, 70, 150, 160)) + 
+  scale_color_manual(values = c("red", "blue", "gray")) + 
+  facet_grid(. ~ Exp) +
+  xlab("Blocks") +
+  ylab("Intensity change")
+
+ggsave(filename = "H:/Shared drives/SMNG/Experiments/simonMultisyllable/Manuscript/PlotGen/9A.png",
+       dpi = 300,
+       width = 9/1.5,
+       height = 3/1.5)
+```
+
+```{r}
+#Means across direction
+
+TEMP1 <- c()
+
+temp1 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Chunk), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Chunk", "Value")
+
+temp2 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Chunk), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+temp1$Chunk <- as.numeric(as.character(temp1$Chunk)) * 10
+
+temp1$Exp <- "Experiment 1"
+
+temp1$Type <- "Intensity"
+
+TEMP1 <- rbind(TEMP1, temp1)
+
+
+TEMP1 <- TEMP1[which(TEMP1$Chunk %in% c(20, 30, 40, 50, 60, 70, 80, 90,
+                                           100, 110, 120, 130, 160)), ]
+
+TEMP1$Chunk <- seq(from = 10, by = 10, length.out = nrow(TEMP1))
+```
+
+#Plot Int, Experiment 2
+```{r}
+TEMP0 <- data2
+
+#Means by direction
+
+temp1 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Direction, TEMP0$Chunk), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Chunk", "Value")
+
+temp2 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Direction, TEMP0$Chunk), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+temp1$Chunk <- as.numeric(as.character(temp1$Chunk)) * 10
+
+temp1$Exp <- "Experiment 2"
+```
+
+```{r}
+#Set up bars and labels
+
+bar_1 = 25
+bar_2 = 55
+bar_3 = 125
+
+var_Baseline = bar_1 / 2
+var_Ramp = (bar_1 + bar_2) /2 
+var_Hold = (bar_2 + bar_3) /2 
+var_Washout = bar_3 + 8
+```
+
+```{r}
+ggplot(data = temp1, aes(x = Chunk, y = Value, 
+                         color = Direction)) +
+  geom_point() + 
+  geom_line() + 
+  geom_errorbar(aes(ymin = Value - se, ymax = Value + se), 
+                width = 10,
+                position = position_dodge(0)) + 
+  theme_classic() + 
+  ylab("") + 
+  xlab("") + 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_1, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_2, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_3, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  annotate(geom = "text", x = var_Baseline, y = max(temp1$Value), 
+           label = "Baseline",color = "black", size = rel(7)) +  
+  annotate(geom = "text", x = var_Ramp, y = max(temp1$Value), 
+           label = "Ramp", color = "black", size = rel(7)) + 
+  annotate(geom = "text", x = var_Hold, y =  max(temp1$Value), 
+           label = "Hold", color = "black", size = rel(7)) + 
+  annotate(geom = "text", x = var_Washout, y =  max(temp1$Value), 
+           label = "Washout", color = "black", size = rel(7)) +
+  theme(legend.position = c(0.68, 0.25), 
+        legend.title = element_blank(),
+        legend.text = element_text(size = rel(1.5)),
+        legend.background = element_blank(),
+        strip.text = element_text(size = rel(2)),
+        axis.title =  element_text(size = rel(2.5)),
+        axis.text = element_text(size = rel(2))) + 
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(breaks = c(10, 20, 30, 50, 60, 120, 130)) + 
+  scale_color_manual(values = c("red", "blue", "gray")) + 
+  facet_grid(. ~ Exp) +
+  xlab("Blocks") +
+  ylab("Intensity change")
+
+ggsave(filename = "H:/Shared drives/SMNG/Experiments/simonMultisyllable/Manuscript/PlotGen/9B.png",
+       dpi = 300,
+       width = 9/1.5,
+       height = 3/1.5)
+```
+
+```{r}
+#Means across direction
+
+TEMP2 <- c()
+
+temp1 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Chunk), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Chunk", "Value")
+
+temp2 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Chunk), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+temp1$Chunk <- as.numeric(as.character(temp1$Chunk)) * 10
+
+temp1$Exp <- "Experiment 2"
+
+temp1$Type <- "Intensity"
+
+TEMP2 <- rbind(TEMP2, temp1)
+```
+
+#Plot Int, Experiment 3
+```{r}
+TEMP0 <- data3
+
+#Means by direction
+
+temp1 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Direction, TEMP0$Chunk), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Direction", "Chunk", "Value")
+
+temp2 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Direction, TEMP0$Chunk), 
+                   FUN = plotrix::std.error) 
+
+temp1$se <- temp2$x
+
+temp1$Chunk <- as.numeric(as.character(temp1$Chunk)) * 10
+
+temp1$Exp <- "Experiment 3"
+```
+
+```{r}
+ggplot(data = temp1, aes(x = Chunk, y = Value, 
+                         color = Direction)) +
+  geom_point() + 
+  geom_line() + 
+  geom_errorbar(aes(ymin = Value - se, ymax = Value + se), 
+                width = 10,
+                position = position_dodge(0)) + 
+  theme_classic() + 
+  ylab("") + 
+  xlab("") + 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_1, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_2, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_3, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  annotate(geom = "text", x = var_Baseline, y = max(temp1$Value), 
+           label = "Baseline",color = "black", size = rel(7)) +  
+  annotate(geom = "text", x = var_Ramp, y = max(temp1$Value), 
+           label = "Ramp", color = "black", size = rel(7)) + 
+  annotate(geom = "text", x = var_Hold, y =  max(temp1$Value), 
+           label = "Hold", color = "black", size = rel(7)) + 
+  annotate(geom = "text", x = var_Washout, y =  max(temp1$Value), 
+           label = "Washout", color = "black", size = rel(7)) +
+  theme(legend.position = c(0.68, 0.25), 
+        legend.title = element_blank(),
+        legend.text = element_text(size = rel(1.5)),
+        legend.background = element_blank(),
+        strip.text = element_text(size = rel(2)),
+        axis.title =  element_text(size = rel(2.5)),
+        axis.text = element_text(size = rel(2))) + 
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_continuous(breaks = c(10, 20, 30, 50, 60, 120, 130)) + 
+  scale_color_manual(values = c("red", "blue", "gray")) + 
+  facet_grid(. ~ Exp) +
+  xlab("Blocks") +
+  ylab("Intensity change")
+
+ggsave(filename = "H:/Shared drives/SMNG/Experiments/simonMultisyllable/Manuscript/PlotGen/9C.png",
+       dpi = 300,
+       width = 9/1.5,
+       height = 3/1.5)
+```
+
+```{r}
+#Means across direction
+
+TEMP3 <- c()
+
+temp1 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Chunk), 
+                   FUN = mean) 
+
+colnames(temp1) <- c("Chunk", "Value")
+
+temp2 <- aggregate(TEMP0$Int_Change, 
+                   list(TEMP0$Chunk), 
+                   FUN = plotrix::std.error) 
+temp1$se <- temp2$x
+
+temp1$Chunk <- as.numeric(as.character(temp1$Chunk)) * 10
+
+temp1$Exp <- "Experiment 3"
+
+temp1$Type <- "Intensity"
+
+TEMP3 <- rbind(TEMP3, temp1)
+```
+
+
+#Plot duration for all experiments
+
+
+```{r}
+#Set up bars and labels
+
+bar_1 = 25
+bar_2 = 55
+bar_3 = 125
+
+```
+
+```{r}
+temp1 <- rbind(TEMP1, TEMP2, TEMP3)
+
+ggplot(data = temp1, aes(x = Chunk, y = Value, color = Exp)) + 
+  geom_point() + 
+  geom_line(aes(linetype = Exp)) +  
+  geom_errorbar(aes(ymin = Value - se, ymax = Value + se), 
+                width = 7,
+                position = position_dodge(0)) + 
+  theme_classic() + 
+  ylab("") + 
+  xlab("Blocks") + 
+  geom_hline(yintercept = 0, linetype = "dashed", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_1, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_2, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  geom_vline(xintercept = bar_3, linetype = "twodash", 
+             color = "black", linewidth = 0.7) + 
+  theme(legend.position = "none",
+        legend.title = element_blank(), 
+        legend.text = element_text(size = 50), 
+        axis.title.x = element_text(size = 90, vjust = 0),
+        axis.text.y = element_text(size = 65),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), 
+        axis.title.y = element_text(size = 90, vjust = 0),
+        strip.text.x = element_text(size = 90)) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(values = c("#E69F03", "#00B050", "#7030A0")) + 
+  scale_linetype_manual(values=c("solid", "longdash", "dotted")) +
+  facet_grid(. ~ Type)
+
+ggsave("7C.png", 
+       plot = last_plot(),
+       dpi = 600,
+       width = 9,
+       height = 3,
+       units = "in")
+```

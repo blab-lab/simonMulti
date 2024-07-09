@@ -82,13 +82,6 @@ while ParticipantIndex <= nParticipants
 
         %Find the location of the vowels
 
-        temp = find(dataVals(nTrial).segment == "v2Start");
-
-        if isempty(temp)
-            nTrial = nTrial + 1
-            continue
-        end
-
         [row, Indx1] = find(dataVals(nTrial).segment == "v2Start"); % Vowel location
 
         if isempty(Indx1)
@@ -125,7 +118,7 @@ while ParticipantIndex <= nParticipants
 
     % Write one person's data to disk
 
-    writetable(data, strcat(Participant, '_Formant.csv'));
+    writetable(data, strcat(Participant, '_Formant_S2.csv'));
 
     % Go to the next participant
     ParticipantIndex = ParticipantIndex + 1;

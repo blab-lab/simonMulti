@@ -1,0 +1,225 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(444) #Set up random seed for reproducibility
+
+options(scipen = 999) #Turn off scientific expressions
+
+library(tidyverse)
+library(qdapTools)
+library(Rmisc)
+
+library(lme4)
+library(lmerTest)
+library(buildmer)
+
+library(phia)
+
+library(r2glmm)
+library(effsize)
+library(performance)
+
+rm(list=ls()) #Clear environment
+
+load("Exp3.RData")
+```
+
+#F1, Baseline, Word
+
+```{r}
+data33 <- data3[which(data3$Phase == "Baseline"), ]
+
+data33 <- data33[which(data33$Chunk == max(data33$Chunk)), ]
+
+data33 <- data33[which(data33$Direction != "Unshifted"), ]
+```
+
+```{r}
+f0 <- meanF1_mel ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = data33,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data33,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#F1, Baseline, Direction
+
+```{r}
+f0 <- meanF1_mel ~  Direction + 
+  (Direction | Speaker) + 
+  (Direction | Word)
+
+m.order <- buildmer(f0,
+                    data = data33,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data33,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#F2, Baseline, Word
+```{r}
+data34 <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F2_Exp3_S1.csv")
+
+var1 <- length(unique(data34$Word)) * 10
+
+data34$Chunk <- ceiling(data34$Trial/var1)
+
+data34 <- data34[which(data34$Phase == "Baseline"), ]
+
+data34 <- data34[which(data34$Chunk == max(data34$Chunk)), ]
+
+data34 <- data34[which(data34$Shift != "Unshifted"), ]
+
+```
+
+```{r}
+f0 <- meanF2_mel ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = data34,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data34,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+
+```
+
+#F2, Baseline, Word
+
+```{r}
+f0 <- meanF2_mel ~ Shift + 
+  (Shift | Speaker) + 
+  (Shift | Word)
+
+m.order <- buildmer(f0,
+                    data = data34,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data34,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#F3, Baseline, Word
+```{r}
+data35 <- read.csv("//wcs-cifs/wc/smng/experiments/simonMultisyllable/acousticdata/R_Zyy/Manuscript/F3_Exp3_S1.csv")
+
+var1 <- length(unique(data35$Word)) * 10
+
+data35$Chunk <- ceiling(data35$Trial/var1)
+
+data35 <- data35[which(data35$Phase == "baseline"), ]
+
+data35 <- data35[which(data35$Chunk == max(data35$Chunk)), ]
+
+data35 <- data35[which(data35$Shift != "Unshifted"), ]
+```
+
+```{r}
+f0 <- Median ~ Word + 
+  (Word | Speaker)
+
+m.order <- buildmer(f0,
+                    data = data35,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data35,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#F3, Baseline, Shift
+
+```{r}
+f0 <- Median ~ Shift + 
+  (Shift | Speaker) +
+  (Shift | Word)
+
+m.order <- buildmer(f0,
+                    data = data35,
+                    buildmerControl=buildmerControl(direction = "order",
+                                                    crit = "BIC", 
+                                                    args=list(control=lmerControl(optimizer='bobyqa'))))
+
+(f1 <- formula(m.order@model))
+
+m.backward <- buildmer(f1,
+                       data = data35,
+                       buildmerControl=list(direction = "backward",
+                                            crit = "BIC", 
+                                            args=list(control=lmerControl(optimizer='bobyqa'))))
+
+summary(m.backward)
+
+(f2 <- formula(m.backward@model))
+```
+
+#Save and clear
+
+```{r}
+rm(m.backward)
+rm(m.order)
+
+save.image("Exp3.RData")
+```
+
