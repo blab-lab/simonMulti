@@ -9,4 +9,4 @@ A preprint of this study can be found at: https://osf.io/preprints/psyarxiv/ceqa
 MATLAB and free-speech (https://github.com/carrien/free-speech) are needed.
 
 ## To run the data analysis scripts
-R and RStudio are needed. The directory also contains the individual statistical models.
+R and RStudio are needed. Data (including statistical models) can be found at: https://osf.io/ytwqp/.
